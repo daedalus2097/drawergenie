@@ -1,0 +1,237 @@
+@DATABASE DrawerGenie.guide
+@WORDWRAP
+@NODE "main" "DrawerGenie Guide"
+
+   @{b}
+   DrawerGenie v0.1
+   @{ub}
+   © 2023 Rob Cranley
+
+
+   Workbench Drawer Helper Toolbar Commodity
+
+   Entry to the 2023 Amiga Tool Jam competition in the Commodity category
+
+
+   @{" Introduction       " Link "introduction"}  What is DrawerGenie?
+
+   @{" Disclaimer         " Link "disclaimer"}  Important disclaimer
+
+   @{" Quickstart         " Link "quickstart"}  Getting stuck right in
+
+   @{" Installation       " Link "installation"}  Installing DrawerGenie
+
+   @{" Usage              " Link "usage"}  How to use DrawerGenie
+
+   @{" Configuration      " Link "configuration"} Configuring DrawerGenie
+
+   @{" Bugs & Limitations " LINK "bugs"}  Known problems with DrawerGenie
+
+   @{" About Me           " LINK "aboutme"}  About the author
+
+@ENDNODE
+@NODE "introduction" "DrawerGenie - Introduction"
+
+@{b}DrawerGenie - Introduction@{ub}
+
+DrawerGenie is a commodity that lets you add a small toolbar to any Workbench drawer window, offering useful file functions like cut/copy/paste, DOpus-style source/destination copying and moving, back and parent functions and more.
+
+DrawerGenie is an entry to the 2023 Amiga Tool Jam in the Commodity category. Full sourcecode is available at https://github.com/daedalus2097/drawergenie
+
+@ENDNODE
+@NODE "disclaimer" "DrawerGenie - Disclaimer"
+
+@{b}DrawerGenie - Disclaimer@{ub}
+
+DrawerGenie is Beta software. It contains bugs, and while every effort has been made to make the program as safe as possible, due to its integration with Workbench and its intended function of manipulating files and directories it's possible that an unforeseen situation may cause unexpected data loss. Use it at your own risk.
+
+@ENDNODE
+@NODE "quickstart" "DrawerGenie - Quickstart"
+
+@{b}DrawerGenie - Quickstart@{ub}
+
+Double-click the DrawerGenie icon to start it. It will normally run quietly in the background.
+
+Double-click it again to open the Preferences window.
+
+Press F1 to attach a toolbar to the active Workbench window. The toolbar will move and resize to suit the window. Expand the Workbench window if necessary to see more gadgets.
+
+Click the gadgets in the toolbar to perform the corresponding action.
+
+Hold down the Help key while clicking a gadget for brief pop-up help.
+
+@ENDNODE
+@NODE "installation" "DrawerGenie - Installation"
+
+@{b}Installing DrawerGenie@{ub}
+
+The simplest thing to do is run the Installer script. This will let you choose a location to install the DrawerGenie drawer, and will optionally put the executable in WBStartup so that it starts on boot. It will also set the path setting for DrawerGenie's home directory as necessary.
+
+DrawerGenie needs to be able to find the various files in the DrawerGenie directory, so if you move the executable elsewhere, e.g. WBStartup, it needs to know where the other files are stored. You can tell it by setting the HOMEDIR Tooltype in the DrawerGenie icon, or using the program's preferences window. The Installer script will set this Tooltype automatically.
+
+Manual installation simply involves storing the unpacked drawer in a suitable location on your hard drive. Just remember to set the HOMEDIR Tooltype or setting if you move the executable away from this location (e.g. into WBStartup).
+
+@ENDNODE
+@NODE "usage" "DrawerGenie - Usage"
+
+@{b}Using DrawerGenie@{ub}
+
+DrawerGenie can be started by opening its icon or automatically on boot. It will normally start running silently in the background as a commodity.
+
+Like most commodities, it can be controlled and removed using the Workbench Exchange commodity or similar. Using the "Show Interface" option in Exchange will open DrawerGenie's preferences, as will running the program a second time.
+
+Once running, to add a toolbar to a Workbench drawer window, press F1 when the desired window is active.
+
+Pop-up help is available by holding down the Help key while clicking on a gadget.
+
+The toolbar presents a number of icons as follows:
+
+- Back
+This will open the previous drawer that spawned the current window. If the "Close previous when opening" option is enabled, the current drawer window will be closed. Holding down Shift reverses this behaviour.
+ 
+- Parent
+This will open the parent drawer of the current window. If the "Close previous when opening" option is enabled, the current drawer window will be closed. Holding down Shift reverses this behaviour.
+
+- Cut
+This will make a note of the selected icons for pasting to another location later on. When pasted, the original selected files will be deleted. This is compatible with the operation of WBCutnPaste. @{b}Warning:@{ub} Files will be removed and overwritten without warning using this function.
+
+- Copy
+This will make a note of the selected icons for pasting later on. When pasted, the original selected files will remain untouched. This is compatible with the operation of WBCutnPaste. @{b}Warning:@{ub} Files will be overwritten without warning using this function.
+
+- Paste
+This will copy previously cut or copied files to the current drawer. If the original files were previously cut, they will be deleted once the copying is complete.
+
+- Refresh
+This will reload the contents of the current window.
+
+- New Drawer
+This will create a new drawer within the current window.
+
+- Icon Information
+This will open the icon information window for the selected icons.
+
+- Delete
+This will delete the selected icons. A warning will be given before deleting the files.
+
+- View Type
+This lets you set the view mode of the current window to show files by text or by icon. These options can be chosen from a small popup list while the gadget is held down.
+
+- Sort
+This lets you sort the files in the current window according to name, date or size. Select the desired sort option from the small popup list that appears when the gadget is held down.
+
+- File Visibility
+This lets you set whether files without associated icons (.info files) are visible or hidden. These options can be chosen from a small popup list while the gadget is held down.
+
+- Rename
+This will let you rename all selected files in the current window.
+
+- Source
+This lets you designate the current window as the source for Copy to and Move to operations. Selecting a window as source will deselect any other windows marked as source. This will be selected automatically if you use the Copy to or Move to functions.
+
+- Destination
+This lets you designate the current window as the destination for Copy to, Move to and Lha unpacking operations. Selecting a window as destination will deselect any other windows marked as destination. A destination window must be selected before Copy to or Move to operations will work.
+
+- Copy To
+This will make a copy of the selected icons in the drawer marked as the destination. The original files will be left as they are.
+
+- Move To
+This will make a copy of the selected icons in the drawer marked as the destination. The original files will be deleted once successfully copied.
+
+- View Files
+This will try to open the selected icons using the viewer conficured in the DrawerGenie preferences. By default, this is Multiview.
+
+- Run Files
+This will try to open selected files as if they were double-clicked on Workbench, and will open selected drawers in a new window with a helper toolbar. If the "Close Previous when opening" option is enabled, the previous drawer window will be closed. Holding down Shift reverses this behaviour.
+
+- Select All
+This will select all files in the current window.
+
+- New Shell Window
+This will open a new Shell window at the directory of the current drawer.
+
+- Unpack Archive
+This will attempt to unpack the selected files using Lha. If no window is designated as the destination, the archive will be unpacked to the same directory as the archive. If a window is designated as the destination, the archive will be unpacked there instead. @{b}Warning:@{ub} Files will be overwritten without warning using this function.
+
+- View Archive
+This will attempt to list the contents of the selected files using Lha. Once all files have been listed, the output lists will be displayed using the viewer set in the preferences (Multiview by default).
+
+- Pack Archive
+This will attempt to pack the selected icons using Lha. The archive will be created in the current drawer, and will be named the same as the first icon with .lha appended.
+
+- Find Files
+This will open the system Find function, normally located at SYS:System/Find. Note that this utility is only included with OS 3.9 and 3.2 by default - OS 3.5 and 3.1.4 users may copy a suitable utility to this location instead.
+
+@ENDNODE
+@NODE "configuration" "DrawerGenie - Configuration"
+
+@{b}Configuring DrawerGenie@{ub}
+
+DrawerGenie can be configured using icon Tooltypes and its preferences window, which can be opened by sending a Show Interface command from the Exchange commodity, or by running the program a second time.
+
+The settings available in the preferences window are as follows:
+
+@{b}Close previous when opening @{ub}
+When this setting is active, the currently active drawer and toolbar will be closed automatically when opening the parent or previous drawer. If it's disabled, the active drawer will remain open. Holding down Shift while executing the relevant functions will reverse the behaviour of this option.
+
+@{b}Default viewer path@{ub}
+This setting is the path to the viewer that should be used when the View icon is clicked. By default it's set to MultiView.
+
+@{b}Home directory@{ub}
+This is the path where DrawerGenie is installed and its support files can be found. This is necessary for when the DrawerGenie executable is moved elsewhere, e.g. WBStartup. By default it will either be blank or set to the installation directory, depending on whether the Installer script was used or not.
+
+@{b}Toolbar hotkey@{ub}
+This lets you set the hotkey used for attaching a toolbar to a window. By default it's set to F1.
+
+@{b}Open hotkey@{ub}
+This lets you set the hotkey used for executing the "Open" function, and is Shift Return by default. Note that this works on the most recently used toolbar, which isn't necessarily the one attached to the active Workbench window.
+
+@{b}Edit Toolbar...@{ub}
+This opens the toolbar editor window. In here you'll find two lists. The left-hand list contains all available gadgets. The right-hand list shows the current configuration of the toolbar. Items in the right-hand list can be moved up and down or removed using the relevant buttons in the middle of the window. New items can be inserted at the current position by selecting them from the left-hand list and clicking Add. Note that gadgets can only be included once in the toolbar. Spacer items add a small gap at the chosen location. You can add as many of these as you like, though the total number of items in the toolbar is limited to 40.
+
+Use will apply the current toolbar settings. Use the Save gadget in the main preferences window to make these changes permanent. Note that toolbars that are already open may not line up correctly with pop-up gadgets if the toolbar has been modified. Close and reopen these toolbars to apply the new settings to them.
+
+
+The available Tooltypes are as follows:
+
+@{b}DONOTWAIT@{ub}
+This is a standard commodity Tooltype that is necessary when a program runs in the background and is started from WBStartup. Without it, Workbench will pause until the program quits.
+
+@{b}CX_POPUP@{ub}
+This is a standard commodity Tooltype, and if set to YES will open the preferences window as soon as the program is run, even if it's not running already.
+
+@{b}HOMEDIR@{ub}
+This contains the path to the drawer where DrawerGenie was installed, and is needed to tell DrawerGenie where to find its support files. This is only needed if the DrawerGenie executable is separated from the support files, as is the case when run from WBStartup. The Installer script will set this Tooltype to the installation location automatically, and it can also be set from within the program preferences.
+
+@ENDNODE
+@NODE "bugs" "DrawerGenie - Bugs and Limitations"
+
+@{b}Bugs and Limitations@{ub}
+
+There are some limitations to DrawerGenie that may or may not get fixed in the future, such as:
+
+- Icon files without associated main files prevent most file operations from starting (this seems to be a limitation within workbench.library)
+
+- When moving a file to another directory on the same volume, if the file already exists at the destination and is to be overwritten, DrawerCopy will fall back to using copy & delete instead of rename, which is a slower method. This is done because renaming after a delete caused the file in question to disappear completely. This *may* be a limitation of AmigaDOS itself, the filesystem, or something else, but for now the slower, safe option is used. Renaming is carried out for any files that do not exist at the destination.
+
+- When extracting an Lha archive, if files with the same name are present, they will be overwritten without warning.
+
+
+If you find any other bugs or have any suggestions, please @{"let me know" LINK "aboutme"}!
+
+@ENDNODE
+@NODE "aboutme" "DrawerGenie - About Me"
+
+@{b}About the Author@{ub}
+
+I'm Rob Cranley, from Ireland but living in Glasgow, Scotland these days.
+
+You can contact me like this:
+
+ - Email: robcranley@gmail.com
+ - As username Daedalus on EAB and other Amiga forums.
+
+You can also visit my webpage at @{"http://www.robthenerd.com" System "OpenURL http://www.robthenerd.com"} for the latest information on this and my other projects.
+
+Also, if you would like to make a donation to show your support and appreciation for the work that has gone into creating this or any of my other projects, please use the PayPal link on my webpage. Thanks!
+
+@ENDNODE

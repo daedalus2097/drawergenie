@@ -1,0 +1,4 @@
+History
+~~~~~~~
+0.2 (29.10.2023)
+- First internal beta release
