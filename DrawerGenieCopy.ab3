@@ -1,0 +1,613 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = "DrawerGenie"
+; ExeFile         = "DrawerGenieCopy"
+; CreateIcon      = 0
+; Residents       = "all.res"
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 100000
+; MakeSmallest    = 1
+; FuncOptimize    = 1
+; Version         = 0.0.0
+; NumberOfBuilds  = 85
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = "ertgsdfgsdfg"
+; StackSize       = 8192
+; RuntimeDebug    = 0
+; DebugInfo       = 0
+; CreateDbgFile   = 0
+; OverflowCheck   = 0
+; AssemblerCheck  = 0
+; InterruptCheck  = 1
+; AutoRun         = 1
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 24
+; CursorColumn    = 34
+; LabelSearch     = ""
+; LabelRemark     = 0
+; LabelAll        = 0
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 100
+; Max GadgetList  = 100
+; Max Queue       = 10
+; Max Screen      = 5
+; Max Shape       = 200
+; Max CopList     = 10
+; Max Sprite      = 20
+; Max Stencil     = 5
+; Max Module      = 5
+; Max Window      = 100
+; Max Anim        = 10
+; Max Sound       = 10
+; Max Bank        = 1
+; Max Buffer      = 10
+; Max Slice       = 10
+; Max Page        = 4
+; Max Tape        = 5
+; Max IntuiFont   = 10
+; Max MedModule   = 8
+; Max Palette     = 4
+; Max MenuList    = 100
+; Max BlitzFont   = 1
+; Max GTList      = 100
+; Max BitMap      = 10
+; Max IconInfo    = 1
+; Max NChunky     = 50
+; Max MUIObject   = 50
+; Max PTModule    = 5
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 100
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max XBSound     = 10
+; Max Chunky      = 20
+; /XTRA
+; *** DrawerGenieCopy
+
+; To do
+; Optionally set date to same as source
+; Optionally ask for permission to overwrite
+; Requester.class approximation for jabier
+
+Syntax 2
+optimize 4
+
+WBStartup
+
+XINCLUDE "dos.include.ab3"
+XINCLUDE "arexx.include.ab3"
+XINCLUDE "file.include.ab3"
+
+XINCLUDE "DrawerGenieDefs.ab3"
+
+error_SetFlags{0}
+
+#debug = 0
+#copybuffer = 65536
+
+ver$ = "$VER: DrawerGenieCopy 0.2 (29.10.2023) by Rob Cranley"
+
+
+NEWTYPE .bordersizes
+  top.w
+  bottom.w
+  left.w
+  right.w
+End NEWTYPE
+
+
+DEFTYPE .b cancelflag, allflag, tocopy
+DEFTYPE .w numargs, i, iconcount, copiedcount, screenw, screenh, fontysize, progresswidth, progressmax, progresscurrent, progressopen, copyflags
+DEFTYPE .l memaddr, succ
+
+DEFTYPE .bordersizes borderwidths
+
+
+numargs = NumPars
+
+If numargs <> 1 Then End
+CNIF #debug
+  NPrint Par$(1)
+CEND
+memaddr = Vallong(Par$(1))
+
+CNIF #debug
+  NPrint "Address: ", Hex$(memaddr)
+CEND
+
+
+
+; *** Functions
+
+Function.b filecopy{src$, dest$} ; Returns error code (0=>no error)
+  SHARED allflag, cancelflag, copyflags
+
+  result.b = False
+  ef.b = 0
+  tocopy.b = True
+
+  If dos_Exist{dest$}
+
+    If allflag = 0
+      req.w = Request("DrawerGenie", "Warning: File|" + dest$ + "|already exists", "Overwrite|Overwrite all|Skip|Skip all|Cancel")
+      Select req
+        Case 0 ; Cancel
+          tocopy = False
+          cancelflag = True
+        Case 1 ; Overwrite
+        Case 2 ; Overwrite all
+          allflag = #alloverwrite
+        Case 3 ; Skip
+          tocopy = False
+        Case 4 ; Skip all
+          tocopy = False
+          allflag = #allskip
+      End Select
+    Else
+      If allflag = #allskip
+        tocopy = False
+      End If
+    End If
+  End If
+
+  If tocopy
+    srcid.l = file_Open{src$, #file_read}
+    If srcid.l >= 0
+
+      destid.l = file_Open{dest$, #file_forcewrite}
+      If destid.l >= 0
+        buff.l = AllocMem_(#copybuffer, 0)
+        If buff
+          filepos.l = 0
+          bytesleft.l = file_GetLength{srcid}
+          copysize.l = 0
+          While bytesleft
+            If bytesleft > #copybuffer
+              copysize = #copybuffer
+            Else
+              copysize = bytesleft
+            End If
+            succ.l = file_ReadMem{srcid, buff, copysize}
+            If succ
+              succ2.l = file_WriteMem{destid, buff, copysize}
+              If succ2 = False
+                ef = #e_filewrite
+                bytesleft = 0
+              End If
+
+              bytesleft - copysize
+            Else
+              ef = #e_fileread
+              bytesleft = 0
+            End If
+          End While
+
+          FreeMem_ buff, #copybuffer
+        End If
+
+        file_Close{destid}
+      End If
+
+      file_Close{srcid}
+    End If
+  End If
+
+  If ef
+    Select ef
+      Case #e_fileread
+        error$ = "Error - unable to read source file"
+      Case #e_filewrite
+        error$ = "Error - unable to write to destination file"
+    End Select
+    Request "DrawerGenie", error$, "Cancel"
+    ;result = ef
+  Else
+    result = True
+    If copyflags & #c_delete
+      succ.l = dos_Delete{src$}
+    End If
+  End If
+
+  Function Return result
+End Function
+
+
+Function.b filemove{src$, dest$}
+  SHARED cancelflag
+  result.b = False
+
+  Function Return result
+End Function
+
+
+Function drawercopy{src$, dest$}
+  SHARED cancelflag, copyflags
+
+  result.b = False
+  succ.l = 0
+  ef.b = False
+
+  dos_CreateDir{dest$}
+  If dos_IsDir{dest$}
+    CNIF #debug
+      NPrint "Drawer exists"
+    CEND
+    Dim List dirlist$(0)
+    Repeat
+      fn$ = dos_ScanDir{src$, "#?"}
+      If fn$ <> ""
+        If AddItem(dirlist$())
+          dirlist$() = fn$
+          CNIF #debug
+            NPrint "Item \\22", fn$, "\\22 added"
+          CEND
+        Else
+          CNIF #debug
+            NPrint "Error adding to files list"
+          CEND
+        End If
+      End If
+    Until fn$ = ""
+
+    ResetList dirlist$()
+    While NextItem(dirlist$())
+      succ = 0
+      fname$ = dos_FilePart{dirlist$()}
+      fulldest$ = dos_AddPart{dest$, fname$}
+      CNIF #debug
+        NPrint "Copying: ", dirlist$()
+      CEND
+      If dos_IsDir{dirlist$()}
+        succ = drawercopy{dirlist$(), fulldest$}
+        If succ = False Then ef = True
+        CNIF #debug
+          NPrint "Drawer from ", dirlist$(), " to ", fulldest$
+        CEND
+      Else
+        If dos_IsFile{dirlist$()}
+          succ = filecopy{dirlist$(), fulldest$}
+          If succ = False Then ef = True
+          CNIF #debug
+            NPrint "File from ", dirlist$(), " to ", fulldest$
+          CEND
+        End If
+      End If
+
+;      If Exists(dirlist$() + ".info")
+;        iconfullpath$ = dirlist$ + ".info"
+;        iconfulldest$ = dest$ + ".info"
+;        iconsucc.l = filecopy{iconfullpath$, iconfulldest$}
+;
+;      End If
+                                                                                                                                                                                                                                                    
+      If cancelflag
+        x.l = LastItem(dirlist$())
+        ef = True
+      End If
+    End While
+
+    If ef = False
+      If copyflags & #c_delete
+        succ = dos_Delete{src$}
+      End If
+      result = True
+    End If
+
+  End If
+
+  Function Return result
+End Function
+
+
+Statement openprogressbar{maxvalue.w}
+  SHARED screenw, screenh, fontysize, progresswidth, progressmax, progresscurrent, progressopen, cancelflag
+  gadh.w = fontysize + 6
+  winw.w = 200
+  winh.w = 100
+
+  GTGZZPosition Off
+
+  flags.l = #WFLG_ACTIVATE + #WFLG_CLOSEGADGET + #WFLG_DEPTHGADGET + #WFLG_DRAGBAR
+  Window 0, screenw / 2 - winw / 2, screenh / 2 - winh / 2, winw, winh, flags, "Copying...", 1, 2
+  iw.w = InnerWidth
+  ih.w = InnerHeight
+  GTButton 0, 0, 5, ih - gadh - 5, iw - 10, gadh, "Cancel", #PLACETEXT_IN
+
+  AttachGTList 0, 0
+
+  progresswidth = iw - 12
+  GTBevelBox 0, 0, 0, iw, ih, 0
+  GTBevelBox 0, 5, 25, progresswidth + 2, 16, 1
+  DefaultOutput
+
+  progressmax = maxvalue
+  progresscurrent = 0
+  progressopen = True
+  cancelflag = False
+
+End Statement
+
+
+Statement updateprogressbar{value.w}
+  SHARED helpers(), borderwidths, progresswidth, progresscurrent, progressmax
+
+  prevvalue.w = progresscurrent
+  If value > progressmax
+    value = progressmax
+  End If
+
+  progresscurrent = value
+  prevpixel.w = progresswidth * prevvalue / progressmax + borderwidths\left
+  currpixel.w = progresswidth * value / progressmax + borderwidths\left
+
+  WBox prevpixel + 6, 26 + borderwidths\top, currpixel + 6, 39 + borderwidths\top, 3
+
+End Statement
+
+
+Statement closeprogressbar{}
+  SHARED progressopen
+  progressopen = False
+
+  DetachGTList 0
+  Free GTList 0
+  CloseWindow 0
+
+End Statement
+
+
+
+; *** End of functions
+
+
+
+
+screenw = ScreenWidth
+screenh = ScreenHeight
+
+WbToScreen 0
+
+*wbscreen.Screen = Peek.l(Addr Screen(0))
+
+
+*fon.TextAttr = *wbscreen\Font
+If *fon
+  font$ = Peek$(*fon\ta_Name)
+  fontysize = *fon\ta_YSize
+Else
+  fontysize = 8
+  Request "DrawerGenie", "Error - Unable to get screen font!", "Quit"
+  End
+End If
+
+CNIF #debug
+  NPrint "font: ", font$
+  NPrint "size: ", fontysize
+CEND
+
+LoadFont 0, font$, fontysize
+
+
+borderwidths\top = *wbscreen\WBorTop + fontysize + 1
+borderwidths\left = *wbscreen\WBorLeft
+borderwidths\right = *wbscreen\WBorRight
+borderwidths\bottom = *wbscreen\WBorBottom
+
+
+
+
+
+If arexx_Init{"DRAWERGENIE" + Par$(1)} = False
+  CNIF #debug
+    NPrint "Unable to open ARexx port"
+  CEND
+  End
+End If
+
+
+
+If memaddr
+
+  iconcount = Peek.w(memaddr)
+  copyflags = Peek.w(memaddr + 2)
+  destpath$ = Peek$(memaddr + 4)
+
+  CNIF #debug
+    Print destpath$
+  CEND
+  If iconcount
+    CNIF #debug
+      NPrint ", size: ", 4 + 256 + iconcount * 256
+    CEND
+
+    Dim path$(iconcount)
+    For i = 1 To iconcount
+      path$(i) = Peek$(memaddr + 4 + i * 256)
+    Next i
+  End If
+
+  FreeMem_ memaddr, (iconcount + 1) * 256 + 4
+
+  If iconcount > 1
+    openprogressbar{iconcount}
+  End If
+
+  For i = 1 To iconcount
+    CNIF #debug
+      NPrint "Copying file: ", path$(i)
+    CEND
+    fulldest$ = dos_AddPart{destpath$, dos_FilePart{path$(i)}}
+
+    ev.l = Event
+    If ev
+      Select ev
+        Case #IDCMP_GADGETUP
+          cancelflag = True
+        Case #IDCMP_CLOSEWINDOW
+          cancelflag = True
+      End Select
+    End If
+
+
+
+    If copyflags & #c_move
+      If dos_Exist{fulldest$}
+        copyflags - #c_move
+        copyflags | #c_delete
+        ; Disable the move and use a copy operation. This is required because renaming after deleting a file causes file to be lost.
+      End If
+    End If
+
+    If copyflags & #c_move
+      tocopy = True
+      If dos_Exist{fulldest$}
+        If allflag = 0
+          req.w = Request("DrawerGenie", "Warning: File|" + fulldest$ + "|already exists", "Overwrite|Overwrite all|Skip|Skip all|Cancel")
+          Select req
+            Case 0 ; Cancel
+              tocopy = False
+              cancelflag = True
+            Case 1 ; Overwrite
+            Case 2 ; Overwrite all
+              allflag = #alloverwrite
+            Case 3 ; Skip
+              tocopy = False
+            Case 4 ; Skip all
+              tocopy = False
+              allflag = #allskip
+          End Select
+        Else
+          If allflag = #allskip
+            tocopy = False
+          End If
+        End If
+
+        ; Disabled because the delete-rename method caused files to disappear
+        ;If tocopy
+        ;  succ.l = dos_Delete{fulldest$}
+        ;End If
+
+
+
+
+      End If
+
+      If tocopy
+        succ.l = dos_Rename{path$(i), fulldest$}
+        NPrint "Renaming ", path$(i), " to ", fulldest$
+        NPrint "result: ", succ
+
+        If dos_Exist{path$(i) + ".info"}
+          iconfullpath$ = path$(i) + ".info"
+          iconfulldest$ = fulldest$ + ".info"
+          If dos_Exist{iconfulldest$}
+            tocopy = True
+            If allflag = 0
+              req.w = Request("DrawerGenie", "Warning: File|" + iconfulldest$ + "|already exists", "Overwrite|Overwrite all|Skip|Skip all|Cancel")
+              Select req
+                Case 0 ; Cancel
+                  tocopy = False
+                  cancelflag = True
+                Case 1 ; Overwrite
+                Case 2 ; Overwrite all
+                  allflag = #alloverwrite
+                Case 3 ; Skip
+                  tocopy = False
+                Case 4 ; Skip all
+                  tocopy = False
+                  allflag = #allskip
+              End Select
+            Else
+              If allflag = #allskip
+                tocopy = False
+              End If
+            End If
+            succ.l = dos_Delete{fulldest$}
+          End If
+
+
+          If tocopy
+            iconsucc.l = dos_Rename{iconfullpath$, iconfulldest$}
+          End If
+        End If
+      End If
+
+    Else ; Move flag not set
+
+      If dos_IsDir{path$(i)}
+        succ = drawercopy{path$(i), fulldest$}
+      Else
+        If dos_IsFile{path$(i)}
+          NPrint "Copying root file ", path$(i)
+          succ = filecopy{path$(i), fulldest$}
+        End If
+      End If
+
+      If cancelflag = False
+        If Exists(path$(i) + ".info")
+          NPrint "Matching icon file found"
+          iconfullpath$ = path$(i) + ".info"
+          iconfulldest$ = fulldest$ + ".info"
+          iconsucc.l = filecopy{iconfullpath$, iconfulldest$}
+        Else
+          NPrint "No matching icon found"
+        End If
+      End If
+
+      CNIF #debug
+        If succ
+          NPrint "Copied successfully"
+        Else
+          NPrint "Error copying files"
+        End If
+      CEND
+      copiedcount + 1
+      updateprogressbar{copiedcount}
+
+    End If
+
+    If cancelflag
+      i = iconcount
+    End If
+
+  Next i
+
+  If iconcount > 1 Then closeprogressbar{}
+  arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + destpath$ + "\\22 INVOKE WINDOW.UPDATE"}
+  If (copyflags & #c_move) OR (copyflags & #c_delete)
+    srcpath$ = dos_PathPart{path$(1)}
+    CNIF #debug
+      NPrint "Refreshing sourcepath: ", srcpath$
+    CEND
+    arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + srcpath$ + "\\22 INVOKE WINDOW.UPDATE"}
+  End If
+
+  CNIF #debug
+    NPrint iconcount, " icons to copy to ", destpath$
+    For i = 1 To iconcount
+      NPrint path$(i)
+    Next i
+  CEND
+
+Else
+  CNIF #debug
+    NPrint "Invalid memory address"
+  CEND
+End If
+
+
+End
+

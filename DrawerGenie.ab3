@@ -1,0 +1,1557 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = "DrawerGenie"
+; ExeFile         = "DrawerGenie"
+; CreateIcon      = 1
+; Residents       = "all.res"
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 10240
+; MakeSmallest    = 1
+; FuncOptimize    = 1
+; Version         = 0.0.0
+; NumberOfBuilds  = 847
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = ""
+; StackSize       = 80000
+; RuntimeDebug    = 1
+; DebugInfo       = 0
+; CreateDbgFile   = 65535
+; OverflowCheck   = 0
+; AssemblerCheck  = 0
+; InterruptCheck  = 1
+; AutoRun         = 1
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 1434
+; CursorColumn    = 16
+; LabelSearch     = ""
+; LabelRemark     = 0
+; LabelAll        = 0
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 5
+; Max GadgetList  = 5
+; Max Queue       = 10
+; Max Screen      = 5
+; Max Shape       = 100
+; Max CopList     = 10
+; Max Sprite      = 20
+; Max Stencil     = 5
+; Max Module      = 5
+; Max Window      = 20
+; Max Anim        = 10
+; Max Sound       = 10
+; Max Bank        = 5
+; Max Buffer      = 10
+; Max Slice       = 10
+; Max Page        = 4
+; Max Tape        = 5
+; Max IntuiFont   = 5
+; Max MedModule   = 8
+; Max Palette     = 4
+; Max MenuList    = 5
+; Max BlitzFont   = 4
+; Max GTList      = 50
+; Max BitMap      = 10
+; Max IconInfo    = 1
+; Max NChunky     = 50
+; Max MUIObject   = 50
+; Max PTModule    = 5
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 20
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max XBSound     = 10
+; Max Chunky      = 20
+; /XTRA
+
+WBStartup
+
+Syntax 2
+optimize 4
+
+ver$ = "$VER: DrawerGenie 0.2 (29.10.2023) by Rob Cranley"
+
+#debug = 0
+#maxhelpers = 10
+#checkframes = 5
+#maxgadgets = 40
+#maxhistory = 20
+#copybuffer = 65536
+
+
+; Non-helper windows
+
+#w_popup = #maxhelpers + 1
+#w_popuphelp = #maxhelpers + 2
+#w_toolbaredit = #maxhelpers + 3
+
+
+; Prefs gadgets
+
+#p_closeprev = 0
+#p_viewer = 1
+#p_viewerselect = 2
+#p_homedir = 3
+#p_homedirselect = 4
+#p_toolbarhotkey = 5
+#p_openhotkey = 6
+#p_edittoolbar = 7
+
+#p_save = 20
+#p_use = 21
+#p_cancel = 22
+
+
+; Edit gadgets
+#e_allgadgets = 0
+#e_toolbar = 1
+#e_add = 2
+#e_remove = 3
+#e_moveup = 4
+#e_movedown = 5
+
+#e_use = 10
+#e_cancel = 11
+
+; Hotkeys
+
+#h_toolbar = 2
+#h_open = 3
+
+
+XINCLUDE "DrawerGenieDefs.ab3"
+XINCLUDE "OS3.5.include.ab3"
+
+
+XINCLUDE "arexx.include.ab3"
+XINCLUDE "dos.include.ab3"
+XINCLUDE "asl.include.ab3"
+XINCLUDE "file.include.ab3"
+
+
+error_SetFlags{0}
+
+
+NEWTYPE .wbwindow
+  winaddr.l
+  winx.w
+  winy.w
+  winw.w
+  winh.w
+  title.s
+End NEWTYPE
+
+NEWTYPE .helperwindow
+  hostwinaddr.l
+  helperwinaddr.l
+  winx.w
+  winy.w
+  winw.w
+  winh.w
+  helperx.w
+  helpery.w
+  helperw.w
+  helperh.w
+  title.s
+  path.s
+  inuse.b
+  source.b
+  dest.b
+
+  history.s[#maxhistory]
+  historystart.w
+  historycount.w
+  historycurrent.w
+
+  progresscurrent.w
+  progressmax.w
+  progressopen.b
+  winlock.l
+  progresswidth.w
+  cancelflag.b
+  viewmode.b
+End NEWTYPE
+
+NEWTYPE .bordersizes
+  top.w
+  bottom.w
+  left.w
+  right.w
+End NEWTYPE
+
+NEWTYPE .prefs
+  viewer.s
+  closeprevious.b
+  spawnhelper.b
+  scrolldown.b
+  addcopypastemenus.b
+  findnewwindows.b
+  toolbarhotkey.s
+  openhotkey.s
+  homedir.s
+End NEWTYPE
+
+NEWTYPE .icon
+  name.s
+  path.s
+  kind.l
+End NEWTYPE
+
+NEWTYPE .gad
+  id.w
+  name.s
+  xpos.w
+End NEWTYPE
+
+NEWTYPE .listitem
+  id.w
+  name.s
+End NEWTYPE
+
+
+DEFTYPE .b quit, activateflag, enabled, prefsopen, swapaction, toolbareditopen
+DEFTYPE .w wbwincount, checkhelper, framecount, iconcount, sourcewin, destwin, fontysize, screenw, screenh, copiedcount, copyflags, wmx, wmy, prevwmx, prevwmy, mousepause, tbselected, allselected
+DEFTYPE.l iblock, x, ev, ew, ec, eq, ce, hk, gh
+
+DEFTYPE .Screen *wbscreen
+DEFTYPE .IntuitionBase *ibase
+DEFTYPE .bordersizes borderwidths
+DEFTYPE .prefs prefs
+DEFTYPE .listitem bufferitem1, bufferitem2
+
+Dim List wbwindows.wbwindow(0)
+Dim helpers.helperwindow(10)
+Dim taglist.TagItem(10)
+Dim List iconlist.icon(0)
+
+Dim gadgets.w(#maxgadgets) ; Contains the layout of the gadgets in the toolbar
+Dim gadgetxpos.w(#maxgadgets) ; X positions of each gadget in the toolbar
+
+lastgadget.w = 30 ; Position of the last gadget in the toolbar
+
+; Load in a default layout including all gadgets
+xpos.w = 0
+For i.w = 0 To lastgadget
+  Read gadgets(i)
+  If gadgets(i) = 999
+    xpos + 10
+  Else
+    gadgetxpos(gadgets(i)) = xpos
+    xpos + 16
+  End If
+Next i
+
+Data.w 1, 2, 999, 3, 4, 5, 999, 6, 7, 8, 9, 22, 24, 25, 18, 999, 13, 14, 15, 16, 999, 17, 19, 20, 999, 28, 29, 30, 31, 32, 33
+
+
+Dim allgadgets.gad(33) ; Contains all possible gadgets, with 0 being the spacer (has ID 999 in the layout array)
+Dim List availablegadgets.listitem(33) ; For the toolbar editor listview
+Dim List selectedgadgets.listitem(#maxgadgets) ; Selected items in the toolbar editor
+
+Restore gadgetnames
+For i = 0 To 33
+  Read x$
+  allgadgets(i)\name = x$
+  If AddItem(availablegadgets())
+    availablegadgets()\name = x$
+  End If
+Next i
+
+.gadgetnames
+Data$ "--Spacer--", "Back", "Parent", "Cut", "Copy", "Paste", "Refresh", "New Drawer", "Icon Information", "Delete", "Text View", "Icon View", "Sort by Name"
+Data$ "Set as Source", "Set as Destination", "Copy to", "Move to", "View File", "Rename", "Open", "Select All", "Sort by Date", "View Type", "Sort by Size", "Sort Icons", "File Visibility"
+Data$ "Only Icons", "All Files", "New Shell Window", "Unpack Lha Archive", "List Lha Archive Contents", "Archive using Lha", "Find Files", "Help"
+
+
+prefs\viewer = "SYS:Utilities/Multiview"
+prefs\closeprevious = 1
+prefs\spawnhelper = 1
+prefs\scrolldown = 0
+prefs\findnewwindows = 1
+prefs\toolbarhotkey = "F1"
+prefs\openhotkey = "Shift Return"
+
+XINCLUDE "drawergeniefuncs.ab3"
+
+
+
+If ExecVersion < 44
+  Request "DrawerGenie", "Error - DrawerGenie requires OS 3.5 or newer", "Quit"
+  End
+End If
+
+
+
+popup.b = False
+popup$ = dos_GetToolString{"CX_POPUP", "No"}
+If LCase$(popup$) = "yes" Then popup = True
+
+
+
+If arexx_Init{"DRAWERGENIE"} = False
+  CNIF #debug
+    NPrint "Unable to open ARexx port"
+  CEND
+  Request "DrawerGenie", "Error - Unable to open ARexx port", "Quit"
+  End
+End If
+
+
+If MakeCommodity("DrawerGenie", "DrawerGenie", "A drawer helper commodity") = False
+  CNIF #debug
+    NPrint "Unable to create commodity"
+  CEND
+  ; This should only happen when DrawerGenie is already running, so no error requester required
+  ;Request "DrawerGenie", "Error - Unable to create commodity", "Quit"
+  End
+End If
+
+
+prefsload{}
+
+
+toolbarfn$ = dos_AddPart{prefs\homedir, "toolbar.iff"}
+If dos_Exist{toolbarfn$} = False
+  Request "DrawerGenie", "Error - Unable to find DrawerGenie files|Can't find " + toolbarfn$ + "|Please select where the DrawerGenie files are located", "Continue"
+  pt$ = prefs\homedir
+  If aslfr_Request{1, False, False, True}
+    pt$ = aslfr_GetPath{1}
+    toolbarfn$ = dos_AddPart{pt$, "toobar.iff"}
+    If dos_Exist{toolbarfn$} = False
+      Request "DrawerGenie", "Error - Files could not be found|Please quit and try again", "Quit"
+      End
+    End If
+
+  Else
+    End
+  End If
+End If
+
+BitMap 0, 528, 32, 2
+LoadBitMap 0, toolbarfn$
+For i.w = 0 To 1
+  For j.w = 0 To 32
+    GetaShape i * #selectedoffset + j + 1, j * 16, i * 16, 16, 16
+  Next j
+Next i
+
+Free BitMap 0
+
+WbToScreen 0
+
+
+
+If SetHotKey(#h_toolbar, prefs\toolbarhotkey) = False
+  CNIF #debug
+    NPrint "Unable to assign toolbar hotkey"
+  CEND
+End If
+
+If SetHotKey(#h_open, prefs\openhotkey) = False
+  CNIF #debug
+    NPrint "Unable to assign open hotkey"
+  CEND
+End If
+
+
+
+*wbscreen = Peek.l(Addr Screen(0))
+*ibase = intuitionbase
+;*currentwin.Window = *ibase\ActiveWindow
+
+
+*fon.TextAttr = *wbscreen\Font
+If *fon
+  font$ = Peek$(*fon\ta_Name)
+  fontysize = *fon\ta_YSize
+Else
+  fontysize = 8
+  Request "DrawerGenie", "Error - Unable to get screen font!", "Quit"
+  End
+End If
+
+CNIF #debug
+  NPrint "font: ", font$
+  NPrint "size: ", fontysize
+CEND
+
+LoadFont 0, font$, fontysize
+
+
+GTMenuTitle 0, 0, "Project"
+GTMenuItem 0, 0, 0, 0, "Save", "S"
+GTMenuItem 0, 0, 0, 1, "Use", "U"
+GTMenuItem 0, 0, 0, 2, "Hide", "H"
+GTMenuItem 0, 0, 0, 3
+GTMenuItem 0, 0, 0, 4, "About...", "?"
+GTMenuItem 0, 0, 0, 5
+GTMenuItem 0, 0, 0, 6, "Quit", "Q"
+
+CreateMenuStrip 0
+
+
+aslfr_SetRequesterTitle{0, "Select Viewer Program", "", ""}; "Ok", "Cancel"}
+aslfr_SetPattern{0, "~(#?.info)"}
+
+aslfr_SetRequesterTitle{1, "Select Home Directory", "", ""}
+
+
+borderwidths\top = *wbscreen\WBorTop + fontysize + 1
+borderwidths\left = *wbscreen\WBorLeft
+borderwidths\right = *wbscreen\WBorRight
+borderwidths\bottom = *wbscreen\WBorBottom
+
+screenw.w = ScreenWidth
+screenh.w = ScreenHeight
+
+AddIDCMP #IDCMP_GADGETDOWN|#LISTVIEWIDCMP
+SubIDCMP #IDCMP_VANILLAKEY|#IDCMP_RAWKEY|#IDCMP_INACTIVEWINDOW|#IDCMP_INTUITICKS|#IDCMP_MOUSEMOVE
+
+checkhelper = 1
+enabled = True
+
+
+If popup
+  openprefs{}
+End If
+
+
+
+.mainloop
+Repeat
+  Delay_ 1
+  ev = Event
+  ew = EventWindow
+  ce = CommodityEvent
+  hk = HotKeyHit
+  eq = EventQualifier
+  gh = GadgetHit
+
+  If ce
+    Select ce
+      Case ExchangeKill
+        quit = True
+      Case ExchangeEnable
+        enabled = True
+        CNIF #debug
+          NPrint "Enabled"
+        CEND
+      Case ExchangeDisable
+        enabled = False
+        CNIF #debug
+          NPrint "Disabled"
+        CEND
+      Case ExchangeUnique
+        openprefs{}
+      Case ExchangeAppear
+        openprefs{}
+      Case ExchangeDisAppear
+        closeprefs{}
+
+    End Select
+
+
+    If hk <> -1
+      Select hk
+        Case #h_toolbar
+          newhelper.w = addhelper{0}
+          If newhelper
+            historyclear{newhelper}
+            historyadd{newhelper, helpers(newhelper)\path}
+          End If
+        Case #h_open
+          CNIF #debug
+            NPrint "Open Hotkey"
+          CEND
+          ;arexx_SendMessage{"WORKBENCH", "MENU INVOKE ICONS.OPEN"}
+          iconcount = getselectedicons{}
+          If iconcount
+            ResetList iconlist()
+            While NextItem(iconlist())
+              If dos_IsDir{iconlist()\path}
+                opendrawer{iconlist()\path}
+                If prefs\closeprevious
+                  If swapaction = False
+                    arexx_SendMessage{"WORKBENCH", "WINDOW \\22" + helpers(ew)\path + "\\22 CLOSE"}
+                    removehelper{ew}
+                  End If
+                Else
+                  If swapaction
+                    arexx_SendMessage{"WORKBENCH", "WINDOW \\22" + helpers(ew)\path + "\\22 CLOSE"}
+                    removehelper{ew}
+                  End If
+                End If
+
+                If prefs\spawnhelper
+                  Delay_ 5
+                  historyadd{ew, iconlist()\path}
+                  addhelper{ew}
+                End If
+                activateflag = False
+              Else ; Not a directory
+                dos_RunWB{iconlist()\path}
+              End If
+            End While
+          End If
+                                                                                                                                                                                                                                                      
+      End Select
+    End If
+  End If
+
+  If ev
+    ec = EventCode
+
+    CNIF #debug
+      NPrint "Event: ", ev, ", Event Window: ", ew, ", code: ", ec, ", qualifier: ", eq
+    CEND
+    Select ew
+      Case 0 ; Prefs window
+        Select ev
+          Case #IDCMP_CLOSEWINDOW
+            closeprefs{}
+
+          Case #IDCMP_GADGETUP
+            Select gh
+              Case #p_viewerselect
+                pt$ = dos_PathPart{prefs\viewer}
+                fn$ = dos_FilePart{prefs\viewer}
+                aslfr_SetFile{0, fn$}
+                aslfr_SetPath{0, pt$}
+
+                If aslfr_Request{0, False, False, False}
+                  fn$ = aslfr_GetFile{0}
+                  pt$ = aslfr_GetPath{0}
+                  ;prefs\viewer = dos_AddPart{pt$, fn$}
+                  GTSetString 0, #p_viewer, dos_AddPart{pt$, fn$} ; prefs\viewer
+                End If
+
+              Case #p_homedirselect
+                pt$ = prefs\homedir
+                aslfr_SetPath{1, pt$}
+                If aslfr_Request{1, False, False, True}
+                  pt$ = aslfr_GetPath{1}
+                  ;prefs\homedir =
+                  GTSetString 0, #p_homedir, pt$
+                End If
+
+              Case #p_edittoolbar
+                If toolbareditopen = False
+                  openedittoolbar{}
+                End If
+
+              Case #p_save
+                getprefs{}
+                prefssave{False}
+                prefssave{True}
+                closeprefs{}
+
+              Case #p_use
+                getprefs{}
+                prefssave{False}
+                closeprefs{}
+
+              Case #p_cancel
+
+                closeprefs{}
+
+            End Select
+          Case #IDCMP_MENUPICK
+            Select ItemHit
+              Case 0 ; Save
+                getprefs{}
+                prefssave{False}
+                prefssave{True}
+                closeprefs{}
+                                                                                                                                                                                                                                                      
+              Case 1 ; Use
+                getprefs{}
+                prefssave{False}
+                closeprefs{}
+                                                                                                                                                                                                                                                      
+              Case 2 ; Hide
+                closeprefs{}
+
+              Case 4 ; About
+                Request "DrawerGenie", "DrawerGenie v" + v$ + " by Rob Cranley|Workbench drawer toolbar commodity", "Cool"
+
+              Case 6 ; Quit
+                quit = True
+
+            End Select
+
+        End Select
+
+      Case #w_toolbaredit
+        Gosub handletoolbaredit
+
+
+      Default
+        If ew > #maxhelpers
+          ;ew - #maxhelpers ; Only needed for when bars have persistent subwindows
+
+        Else ; This was a helper window
+          swapaction.b = eq & #q_shift ;%11
+          CNIF #debug
+            NPrint "Swap: ", swapaction
+          CEND
+
+          Select ev
+            Case #IDCMP_ACTIVEWINDOW
+              activateflag = True
+
+            Case #IDCMP_GADGETDOWN
+              CNIF #debug
+                NPrint "Gadget Down"
+              CEND
+
+              helpflag.b = False
+              If RawKeyState($5F) ; Help key held
+                helpflag = True
+              End If
+
+              Select gh
+                Case #viewtype
+                  subgad.w = opendropdown{ew, gh, 2}
+                  CNIF #debug
+                    NPrint "Subgadget selected: ", subgad
+                  CEND
+
+                  If helpflag
+                    Gosub popuphelp
+                  Else
+                    Select subgad
+                      Case 1
+                        arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.VIEWBY.NAME"}
+                        helpers(ew)\viewmode = #name
+                      Case 2
+                        arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.VIEWBY.ICON"}
+                        helpers(ew)\viewmode = #icon
+
+                    End Select
+                  End If
+                Case #sort
+                  subgad.w = opendropdown{ew, gh, 3}
+                  CNIF #debug
+                    NPrint "Subgadget selected: ", subgad
+                  CEND
+
+                  If helpflag
+                    Gosub popuphelp
+                  Else
+
+                    If helpers(ew)\viewmode = #icon
+                      menucmd$ = "CLEANUPBY"
+                    Else
+                      If helpers(ew)\viewmode = #name
+                        menucmd$ = "VIEWBY"
+                      End If
+                    End If
+                    Select subgad
+                      Case 1
+                        arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW." + menucmd$ + ".NAME"}
+                      Case 2
+                        arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW." + menucmd$ + ".DATE"}
+                      Case 3
+                        arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW." + menucmd$ + ".SIZE"}
+
+                    End Select
+                  End If
+
+                Case #viewfiles
+                  subgad.w = opendropdown{ew, gh, 2}
+                  CNIF #debug
+                    NPrint "Subgadget selected: ", subgad
+                  CEND
+
+                  If helpflag
+                    Gosub popuphelp
+                  Else
+
+                    Select subgad
+                      Case 1
+                        arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.SHOW.ONLYICONS"}
+                      Case 2
+                        arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.SHOW.ALLFILES"}
+
+                    End Select
+                  End If
+
+              End Select
+
+            Case #IDCMP_GADGETUP
+              CNIF #debug
+                NPrint "Gadget up"
+              CEND
+
+              ;If eq & #q_ctrl ; Control key held
+              If RawKeyState($5F) ; Help key held
+                CNIF #debug
+                  NPrint "Help held"
+                CEND
+
+                ;If helpflag ; We opened a help popup, which may have changed a SRC or DEST gadget...
+                  If gh = #source
+                    GTToggle ew, #source
+                  Else
+                    If gh = #dest
+                      GTToggle ew, #dest
+                    End If
+                  End If
+                ;End If
+                                                                                                                                                                                                                                                      
+                helpflag = True
+                Gosub popuphelp
+
+              Else
+                Select gh
+                  Case #back
+                    name$ = historyback{ew}
+                    If name$ <> ""
+                      opendrawer{name$}
+                      If prefs\closeprevious
+                        If swapaction = False
+                          arexx_SendMessage{"WORKBENCH", "WINDOW \\22" + helpers(ew)\path + "\\22 CLOSE"}
+                          removehelper{ew}
+                        End If
+                      Else
+                        If swapaction
+                          arexx_SendMessage{"WORKBENCH", "WINDOW \\22" + helpers(ew)\path + "\\22 CLOSE"}
+                          removehelper{ew}
+                        End If
+                      End If
+
+                      If prefs\spawnhelper
+                        Delay_ 5
+                        addhelper{ew}
+                      End If
+                      activateflag = False
+
+                    End If
+
+
+                  Case #parent
+                    ;arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.OPENPARENT"}
+                    name$ = dos_PathPart{helpers(ew)\path}
+                    ;NPrint "Parent: ", name$
+                    If name$ <> helpers(ew)\path
+                      opendrawer{name$}
+
+                      If prefs\closeprevious
+                        If swapaction = False
+                          arexx_SendMessage{"WORKBENCH", "WINDOW \\22" + helpers(ew)\path + "\\22 CLOSE"}
+                          removehelper{ew}
+                        End If
+                      Else
+                        If swapaction
+                          arexx_SendMessage{"WORKBENCH", "WINDOW \\22" + helpers(ew)\path + "\\22 CLOSE"}
+                          removehelper{ew}
+                        End If
+                      End If
+
+                      If prefs\spawnhelper
+                        Delay_ 5
+                        addhelper{ew}
+                      End If
+                      activateflag = False
+                      historyadd{ew, name$}
+                    End If
+
+                  Case #cut
+                    iconcount = getselectedicons{}
+                    If iconcount
+                      cut{ew}
+                    End If
+
+                  Case #copy
+                    iconcount = getselectedicons{}
+                    If iconcount
+                      copy{ew}
+                    End If
+
+                  Case #paste
+                    paste{ew}
+
+                  Case #refresh
+                    arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.UPDATE"}
+
+                  Case #newdrawer
+                    arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.NEWDRAWER"}
+                    activateflag = False
+
+                  Case #info
+                    If getselectedicons{}
+                      arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE ICONS.INFORMATION"}
+                      activateflag = False
+
+                    Else
+                      CNIF #debug
+                        NPrint "Info window for: ", helpers(ew)\path
+                      CEND
+                      If Right$(helpers(ew)\path, 1) <> ":" ; Make sure it's not a volume because it never returns if it is...
+                        arexx_SendMessage{"WORKBENCH", "INFO NAME \\22" + helpers(ew)\path + "\\22"}
+                      Else
+                        CNIF #debug
+                          NPrint "Volume - cannot open info window"
+                        CEND
+                      End If
+                    End If
+
+                  Case #delete
+                    arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE ICONS.DELETE"}
+                    activateflag = False
+
+                  Case #rename
+                    arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE ICONS.RENAME"}
+                    activateflag = False
+
+                  Case #textview
+                    arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.VIEWBY.NAME"}
+
+                  Case #iconview
+                    arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.VIEWBY.ICON"}
+
+                  Case #sort
+                    arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.CLEANUPBY.NAME"}
+
+                  Case #source
+                    If GTStatus(ew, #source)
+                      CNIF #debug
+                        NPrint "Setting ", ew, " as Source"
+                      CEND
+                      setsource{ew}
+                    Else
+                      If helpers(ew)\source
+                        helpers(ew)\source = 0
+                        sourcewin = 0
+                      End If
+                    End If
+
+                  Case #dest
+                    If GTStatus(ew, #dest)
+                      CNIF #debug
+                        NPrint "Setting ", ew, " as Destination"
+                      CEND
+                      setdest{ew}
+                    Else
+                      If helpers(ew)\dest
+                        helpers(ew)\dest = 0
+                        destwin = 0
+                      End If
+
+                    End If
+
+                  Case #copyto
+                    iconcount = getselectedicons{}
+                    CNIF #debug
+                      NPrint iconcount, " icons selected for copying to..."
+                    CEND
+
+                    If sourcewin <> ew ;helpers(ew)\source
+                      setsource{ew}
+                      GTToggle ew, #source, On
+                    End If
+
+                    If iconcount
+                      If destwin
+                        ResetList iconlist()
+                        copiedcount = 0
+                        copyflags = 0
+
+                        pathsbuffer.l = AllocMem_(256 * (iconcount + 1) + 4, 0)
+                        If pathsbuffer
+                          Poke.w pathsbuffer, iconcount
+                          Poke.w pathsbuffer + 2, copyflags
+                          fulldest$ = helpers(destwin)\path
+                          Poke$ pathsbuffer + 4, helpers(destwin)\path
+                          ResetList iconlist()
+                          For i = 0 To iconcount - 1
+                            If NextItem(iconlist())
+                              Poke$ pathsbuffer + 4 + 256 + i * 256, iconlist()\path
+                            End If
+                          Next i
+                        Else
+                          Request "DrawerGenie", "Error - Unable to allocate memory", "Cancel"
+                        End If
+
+                        cmd$ = "run \\22" + dos_AddPart{prefs\homedir, "DrawerGenieCopy\\22"} + " " + Str$(pathsbuffer) + " >T:DHcopyDebug.txt"
+                        CNIF #debug
+                          NPrint "Sending: ", Hex$(pathsbuffer), ", Size: ", 4 + 256 + iconcount * 256
+                        CEND
+                        Execute_ cmd$, 0, 0
+
+                      End If
+                    End If
+
+                  Case #moveto
+                    iconcount = getselectedicons{}
+                    CNIF #debug
+                      NPrint iconcount, " icons selected for moving to..."
+                    CEND
+                    If sourcewin <> ew
+                      setsource{ew}
+                      GTToggle ew, #source, On
+                    End If
+
+                    If iconcount
+                      If destwin
+                        srclock.l = Lock_(&helpers(ew)\path, #ACCESS_READ)
+                        destlock.l = Lock_(&helpers(destwin)\path, #ACCESS_READ)
+                        samedir.b = False
+                        samevol.b = False
+
+                        If srclock
+                          If destlock
+                            samelock.l = SameLock_(srclock, destlock)
+                            If samelock = #LOCK_SAME
+                              samedir = True
+                              CNIF #debug
+                                NPrint "Same dir!"
+                              CEND
+                            End If
+                            If samelock = #LOCK_SAME_VOLUME
+                              samevol = True
+                              CNIF #debug
+                                NPrint "Same volume!"
+                              CEND
+                            End If
+                            UnLock_ destlock
+                          Else
+                            CNIF #debug
+                              NPrint "Unable to obtain destination lock"
+                            CEND
+                          End If
+
+                          UnLock_ srclock
+                        End If
+
+
+                        If samedir
+                          ; Same directory - nothing happens
+                        Else
+
+                          ResetList iconlist()
+                          copyflags = 0
+                          copiedcount = 0
+
+                          If samevol
+                            copyflags + #c_move
+                          Else
+                            copyflags + #c_delete
+                          End If
+
+                          pathsbuffer.l = AllocMem_(256 * (iconcount + 1) + 4, 0)
+                          If pathsbuffer
+                            Poke.w pathsbuffer, iconcount
+                            Poke.w pathsbuffer + 2, copyflags
+                            fulldest$ = helpers(destwin)\path
+                            Poke$ pathsbuffer + 4, helpers(destwin)\path
+                            ResetList iconlist()
+                            For i = 0 To iconcount - 1
+                              If NextItem(iconlist())
+                                Poke$ pathsbuffer + 4 + 256 + i * 256, iconlist()\path
+                              End If
+                            Next i
+                          Else
+                            Request "DrawerGenie", "Error - Unable to allocate memory", "Cancel"
+                          End If
+
+
+                        End If
+
+                        cmd$ = "run \\22" + dos_AddPart{prefs\homedir, "DrawerGenieCopy\\22"} + " " + Str$(pathsbuffer) + " >T:DHcopyDebug.txt"
+                        CNIF #debug
+                          NPrint "Sending: ", Hex$(pathsbuffer), ", Size: ", 4 + 256 + iconcount * 256
+                        CEND
+                        Execute_ cmd$, 0, 0
+
+                      End If
+                    End If
+
+                  Case #view
+                    iconcount = getselectedicons{}
+                    If iconcount
+                      ResetList iconlist()
+                      While NextItem(iconlist())
+                        ;cmd$ = prefs\viewer + " \\22" + iconlist$() + "\\22"
+
+                        If dos_IsFile{iconlist()\path}
+                          cmd$ = "\\22" + iconlist()\path + "\\22"
+                          ;NPrint cmd$
+                          x.l = dos_RunCli{prefs\viewer, 0, 8192, 0, cmd$}
+                          ;Execute_ &cmd$, 0, 0
+                        Else ; This is a drawer or something - try to open it
+                          opendrawer{iconlist()\path}
+                          If prefs\spawnhelper
+                            Delay_ 5
+                            historyadd{ew, iconlist()\path}
+                            addhelper{ew}
+                          End If
+                          activateflag = False
+
+                        End If
+                      End While
+                    End If
+
+                  Case #open
+                    iconcount = getselectedicons{}
+                    If iconcount
+                      ResetList iconlist()
+                      While NextItem(iconlist())
+                        If dos_IsDir{iconlist()\path}
+                          opendrawer{iconlist()\path}
+                          If prefs\closeprevious
+                            If swapaction = False
+                              arexx_SendMessage{"WORKBENCH", "WINDOW \\22" + helpers(ew)\path + "\\22 CLOSE"}
+                              removehelper{ew}
+                            End If
+                          Else
+                            If swapaction
+                              arexx_SendMessage{"WORKBENCH", "WINDOW \\22" + helpers(ew)\path + "\\22 CLOSE"}
+                              removehelper{ew}
+                            End If
+                          End If
+
+                          If prefs\spawnhelper
+                            Delay_ 5
+                            historyadd{ew, iconlist()\path}
+                            addhelper{ew}
+                          End If
+                          activateflag = False
+                        Else ; Not a directory
+                          dos_RunWB{iconlist()\path}
+                        End If
+                      End While
+                    End If
+
+
+                  Case #selectall
+                    arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.SELECTCONTENTS"}
+
+                    ;arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE ICONS.OPEN"}
+                    ;ResetList iconlist
+                  Case #shell
+                    cd$ = dos_GetProgDir{""}
+                    If WriteFile(0, "T:DHcli")
+                      FileOutput 0
+                      NPrint "CD \\22" + helpers(ew)\path + "\\22"
+                      NPrint "NewCLI"
+                      CloseFile 0
+                      DefaultOutput
+                      Execute_ "Execute T:DHcli", 0, 0
+                      activateflag = False
+                    End If
+
+                  Case #unpack
+                    CNIF #debug
+                      NPrint "Unpacking..."
+                    CEND
+
+                    Gosub fillpathsbuffer
+
+                    If pathsbuffer
+                      If destwin
+                        fulldest$ = helpers(destwin)\path
+                      Else
+                        fulldest$ = helpers(ew)\path
+                      End If
+                      If Right$(fulldest$, 1) <> ":"
+                        If Right$(fulldest$, 1) <> "/"
+                          fulldest$ + "/"
+                        End If
+                      End If
+
+                      Poke.w pathsbuffer + 2, #a_unpack
+                      Poke$ pathsbuffer + 4, fulldest$
+                      cmd$ = "Run \\22" + dos_AddPart{prefs\homedir, "DrawerGenieLha\\22"} + " " + Str$(pathsbuffer) + " >T:DHlhaDebug.txt"
+                      Execute_ cmd$, 0, 0
+                    End If
+
+                  Case #viewlha
+                    CNIF #debug
+                      NPrint "Listing..."
+                    CEND
+
+                    Gosub fillpathsbuffer
+
+                    If pathsbuffer
+                      Poke.w pathsbuffer + 2, #a_list
+                      Poke$ pathsbuffer + 4, prefs\viewer
+
+                      cmd$ = "Run \\22" + dos_AddPart{prefs\homedir, "DrawerGenieLha\\22"} + " " + Str$(pathsbuffer) + " >T:DHlhaDebug.txt"
+                      Execute_ cmd$, 0, 0
+
+                    End If
+
+                  Case #pack
+                    CNIF #debug
+                      NPrint "Packing..."
+                    CEND
+
+                    Gosub fillpathsbuffer
+
+                    If pathsbuffer
+                      If destwin
+                        fulldest$ = helpers(destwin)\path
+                      Else
+                        fulldest$ = helpers(ew)\path
+                      End If
+
+                      Poke.w pathsbuffer + 2, #a_pack
+                      Poke$ pathsbuffer + 4, fulldest$
+
+                      cmd$ = "Run \\22" + dos_AddPart{prefs\homedir, "DrawerGenieLha\\22"} + " " + Str$(pathsbuffer) + " >T:DHlhaDebug.txt"
+                      Execute_ cmd$, 0, 0
+
+                    End If
+
+                  Case #find
+                    Execute_ "Run SYS:System/Find", 0, 0
+
+                  Case #help
+                    cmd$ = "Run \\22" + prefs\viewer + "\\22 \\22" + dos_AddPart{prefs\homedir, "DrawerGenie.guide"} + "\\22"
+                    Execute_ cmd$, 0, 0
+                End Select
+
+;                If helpflag ; We opened a help popup, which may have changed a SRC or DEST gadget...
+;                  If gh = #source
+;                    GTToggle ew, #source
+;                  Else
+;                    If gh = #dest
+;                      GTToggle ew, #source
+;                    End If
+;                  End If
+;                End If
+              End If
+          End Select
+        End If
+    End Select
+  Else ; No event left in queue
+    If activateflag
+      ActivateWindow_ helpers(ew)\hostwinaddr
+      activateflag = False
+    End If
+
+  End If
+
+  framecount + 1
+  If framecount >= #checkframes
+    checkhelper = nexthelper{checkhelper}
+    If checkhelper
+      helperstatus.b = helperstatus{checkhelper}
+      Use Window checkhelper
+      USEPATH helpers(checkhelper)
+      *currentwin.Window = \hostwinaddr
+      If helperstatus & %1 ; Window has been moved
+        \helperx = \winx + *currentwin\BorderLeft
+        \helpery = \winy + *currentwin\BorderTop
+        WMove \helperx, \helpery
+      End If
+      If helperstatus & %10  ; Window has been resized
+        prevwidth.w = \helperw
+        \helperw = \winw - *currentwin\BorderLeft - *currentwin\BorderRight
+
+        SizeWindow_ \helperwinaddr, \helperw - prevwidth, 0
+        Wline prevwidth - 1, 1, prevwidth - 1, 16, 0
+        Wline prevwidth - 2, 1, prevwidth - 2, 16, 0
+        Delay_ 10
+        GTBevelBox checkhelper, 0, 0, \helperw, \helperh, 0
+      End If
+
+      If helperstatus = 16 ; Window has been closed
+        removehelper{checkhelper}
+      End If
+      DefaultOutput
+      MoveWindowInFrontOf_ \helperwinaddr, *currentwin
+
+    End If
+
+
+
+    framecount = 0
+  End If
+Until quit
+
+arexx_Free{}
+End
+
+
+.fillpathsbuffer
+  iconcount = getselectedicons{}
+  ResetList iconlist()
+
+  pathsbuffer.l = AllocMem_(256 * (iconcount + 1) + 4, 0)
+  If pathsbuffer
+    Poke.w pathsbuffer, iconcount
+
+    ResetList iconlist()
+    For i = 0 To iconcount - 1
+      If NextItem(iconlist())
+        Poke$ pathsbuffer + 4 + 256 + i * 256, iconlist()\path
+      End If
+    Next i
+  Else
+    Request "DrawerGenie", "Error - Unable to allocate memory", "Cancel"
+  End If
+
+Return
+
+
+.popuphelp
+  smx.w = SMouseX
+  smy.w = SMouseY
+
+  If gh
+    CNIF #debug
+      NPrint "Help for gadget ", gh, ": ", allgadgets(gh)\name
+    CEND
+    Select gh ; We need special cases for any popup gadgets since they don't trigger with a gadget up event
+      Case #sort
+        Select subgad
+          Case 0
+            help$ = allgadgets(#sort)\name
+          Case 1
+            help$ = allgadgets(#sortalpha)\name
+          Case 2
+            help$ = allgadgets(#sortbydate)\name
+          Case 3
+            help$ = allgadgets(#sortbysize)\name
+        End Select
+
+      Case #viewtype
+        Select subgad
+          Case 0
+            help$ = allgadgets(#viewtype)\name
+          Case 1
+            help$ = allgadgets(#textview)\name
+          Case 2
+            help$ = allgadgets(#iconview)\name
+        End Select
+
+      Case #viewfiles
+        Select subgad
+          Case 0
+            help$ = allgadgets(#viewfiles)\name
+          Case 1
+            help$ = allgadgets(#onlyicons)\name
+          Case 2
+            help$ = allgadgets(#allfiles)\name
+        End Select
+                                                                                                                                                                                                                                                      
+      Default ; Non-popup gadgets
+        help$ = allgadgets(gh)\name
+    End Select
+
+    helpwidth.w = stringpixels{help$} + 10
+    helpheight.w = fontysize
+    winx.w = helpwidth / 2
+    If smx > winx
+      winx = smx - winx
+    Else
+      winx = 0
+    End If
+
+    winy.w = 0
+    If smy > 15
+      winy = smy - 15
+    End If
+
+    flags.l = #WFLG_BORDERLESS
+    Window #w_popuphelp, winx, winy, helpwidth, helpheight, flags, "", 1, 2
+    Wline 0, helpheight - 1, 0, 0, helpwidth - 1, 0, 2
+    Wline helpwidth - 1, 0, helpwidth - 1, helpheight - 1, 0, helpheight - 1, 1
+    WLocate 5, 3
+    NPrint help$
+    DefaultOutput
+    closehelp.b = False
+    FlushEvents
+    Repeat
+      Delay_ 1
+      ev.l = Event
+      smx2.w = SMouseX
+      smy2.w = SMouseY
+      If ev
+        closehelp = True
+        CNIF #debug
+          NPrint "Close event: ", Hex$(ev)
+        CEND
+      End If
+
+      If Abs(smx2 - smx) > 5
+        closehelp = True
+        CNIF #debug
+          NPrint "X move"
+        CEND
+      Else
+        If Abs(smy2 - smy) > 5
+          closehelp = True
+          CNIF #debug
+            NPrint "Y move"
+          CEND
+        End If
+      End If
+    Until closehelp
+    CloseWindow #w_popuphelp
+  End If
+
+Return
+
+
+;.popuphelp2 ; For finding the gadget based on mouse position
+;  NPrint "Eventwindow: ", ew
+;  ;If ew > 0
+;  helpgadget.w = 0
+;  For i = 1 To #maxhelpers
+;    If helpers(i)\inuse
+;      ew = i
+;      NPrint "Helper ", i, " in use"
+;      wmx.w = SMouseX - helpers(i)\helperx ;WMouseX
+;      wmy.w = SMouseY - helpers(i)\helpery ;WMouseY
+;      DefaultOutput
+;      NPrint wmx, ", ", wmy
+;      If wmx > 0
+;        If wmy > 0
+;          If wmy < 18
+;            If wmx <= gadgetxpos(gadgets(lastgadget)) + 16
+;              NPrint "Paused mouse"
+;              For j.w = 0 To #maxgadgets
+;                If gadgets(j)
+;                  If gadgets(j) < 999
+;                    diff.w = wmx - gadgetxpos(gadgets(j))
+;                    NPrint "Gadget ", j, ", diff: ", diff
+;                    If diff > 0
+;                      If diff < 16
+;                        NPrint "Help over gadget ", j
+;                        NPrint "Gadget in position ", j, ": ", gadgets(j)
+;                        If gadgets(j) <> 999
+;                          helpgadget.w = gadgets(j)
+;                          j = #maxgadgets
+;                        End If
+;                      End If
+;                    End If
+;                  End If
+;                End If
+;              Next j
+;            End If
+;          End If
+;        End If
+;      End If
+;    End If
+;  Next i
+;
+;
+;  smx.w = SMouseX
+;  smy.w = SMouseY
+;  If smy > 10
+;    smy - 10
+;  Else
+;    smy = 0
+;  End If
+;
+;  If helpgadget
+;  Select helpgadget
+;    Case #spacer
+;    Default
+;      help$ = allgadgets(helpgadget)\name
+;  End Select
+;
+;  helpwidth.w = stringpixels{help$} + 10
+;  helpheight.w = fontysize
+;  winx.w = helpwidth / 2
+;  If smx > winx
+;    winx = smx - winx
+;  Else
+;    winx = 0
+;  End If
+;
+;  flags.l = #WFLG_BORDERLESS
+;  Window #w_popuphelp, winx, smy - 10, helpwidth, helpheight, flags, "", 1, 2
+;  Wline 0, helpheight - 1, 0, 0, helpwidth - 1, 0, 2
+;  Wline helpwidth - 1, 0, helpwidth - 1, helpheight - 1, 0, helpheight - 1, 1
+;  WLocate 5, 3
+;  NPrint help$
+;  closehelp.b = False
+;  ;Stop
+;  Repeat
+;    Delay_ 1
+;    ev.l = Event
+;    smx2.w = SMouseX
+;    smy2.w = SMouseY
+;    If ev
+;      closehelp = True
+;      NPrint "Close event: ", Hex$(ev)
+;    End If
+;    If Abs(smx2 - smx) > 10
+;      closehelp = True
+;      NPrint "X move"
+;    Else
+;      If Abs(smy2 - smy) > 10
+;        closehelp = True
+;      NPrint "Y move"
+;      End If
+;    End If
+;  Until closehelp
+;  CloseWindow #w_popuphelp
+;  DefaultOutput
+;  End If
+;Return
+
+
+.handletoolbaredit
+  Select ev
+    Case #IDCMP_CLOSEWINDOW
+      closeedittoolbar{}
+
+    Case #IDCMP_GADGETUP
+      Select gh
+        Case #e_toolbar
+          setcurrentgadget{ec}
+          tbselected = ec
+          CNIF #debug
+            NPrint "Gadget ", ec, " selected: ", selectedgadgets()\id, ", ", selectedgadgets()\name
+          CEND
+
+        Case #e_add
+          allselected = GTGetAttrs(#w_toolbaredit, #e_allgadgets, #GTLV_Selected)
+          ;NPrint allselected
+          If allselected <> -1
+            toadd.b = True
+            If allselected <> 0
+              ;NPrint "Checking list"
+              ResetList selectedgadgets()
+              While NextItem(selectedgadgets())
+                If selectedgadgets()\id = allselected
+                  toadd = False
+                End If
+              End While
+              setcurrentgadget{tbselected}
+            End If
+
+            If toadd
+              ;NPrint "to be added"
+              If lastgadget < #maxgadgets
+                GTChangeList #w_toolbaredit, #e_toolbar
+                If tbselected = 0
+                  x = AddFirst(selectedgadgets())
+                Else
+                  x = PrevItem(selectedgadgets())
+                  x = AddItem(selectedgadgets())
+                End If
+                If x
+                  selectedgadgets()\name = allgadgets(allselected)\name
+                  If allselected = 0
+                    selectedgadgets()\id = 999
+                  Else
+                    selectedgadgets()\id = allselected
+                  End If
+                  lastgadget + 1
+                End If
+                GTChangeList #w_toolbaredit, #e_toolbar, selectedgadgets()
+                setcurrentgadget{tbselected}
+              End If
+            End If
+          End If
+
+        Case #e_remove
+          If lastgadget
+            CNIF #debug
+              NPrint "Removing item ", tbselected
+            CEND
+            GTChangeList #w_toolbaredit, #e_toolbar
+            KillItem selectedgadgets()
+            lastgadget - 1
+            GTChangeList #w_toolbaredit, #e_toolbar, selectedgadgets()
+            tbselected = GTGetAttrs(#w_toolbaredit, #e_toolbar, #GTLV_Selected)
+            setcurrentgadget{tbselected}
+          End If
+
+        Case #e_moveup
+          If tbselected > 0
+            CNIF #debug
+              NPrint "Moving item up"
+            CEND
+            CopyType selectedgadgets(), bufferitem1
+
+            GTChangeList #w_toolbaredit, #e_toolbar
+            x = PrevItem(selectedgadgets())
+            CNIF #debug
+              If x
+                NPrint "PrevItem successful: ", selectedgadgets()\name
+              Else
+                NPrint "Unable to PrevItem"
+              End If
+            CEND
+            CopyType selectedgadgets(), bufferitem2
+            CopyType bufferitem1, selectedgadgets()
+            x = NextItem(selectedgadgets())
+            CopyType bufferitem2, selectedgadgets()
+            GTChangeList #w_toolbaredit, #e_toolbar, selectedgadgets()
+            tbselected - 1
+            GTSetAttrs #w_toolbaredit, #e_toolbar, #GTLV_Selected, tbselected
+            setcurrentgadget{tbselected}
+          End If
+
+        Case #e_movedown
+          If tbselected < lastgadget
+            CNIF #debug
+              NPrint "Moving item down"
+            CEND
+            CopyType selectedgadgets(), bufferitem1
+
+            GTChangeList #w_toolbaredit, #e_toolbar
+            x = NextItem(selectedgadgets())
+            CNIF #debug
+              If x
+                NPrint "NextItem successful: ", selectedgadgets()\name
+              Else
+                NPrint "Unable to NextItem"
+              End If
+            CEND
+            CopyType selectedgadgets(), bufferitem2
+            CopyType bufferitem1, selectedgadgets()
+            x = PrevItem(selectedgadgets())
+            CopyType bufferitem2, selectedgadgets()
+            GTChangeList #w_toolbaredit, #e_toolbar, selectedgadgets()
+            tbselected + 1
+            GTSetAttrs #w_toolbaredit, #e_toolbar, #GTLV_Selected, tbselected
+            setcurrentgadget{tbselected}
+          End If
+
+        Case #e_use
+          ResetList selectedgadgets()
+          xpos = 0
+          For i = 0 To lastgadget
+            If NextItem(selectedgadgets())
+              gadgets(i) = selectedgadgets()\id
+              If gadgets(i) = 999
+                xpos + 10
+              Else
+                gadgetxpos(gadgets(i)) = xpos
+                xpos + 16
+              End If
+
+            End If
+          Next i
+          closeedittoolbar{}
+
+        Case #e_cancel
+          closeedittoolbar{}
+
+      End Select
+
+  End Select
+
+
+Return
+

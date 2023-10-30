@@ -1,0 +1,421 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = "DrawerGenie"
+; ExeFile         = "DrawerGenieLha"
+; CreateIcon      = 0
+; Residents       = "all.res"
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 100000
+; MakeSmallest    = 1
+; FuncOptimize    = 1
+; Version         = 0.0.0
+; NumberOfBuilds  = 102
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = "ertgsdfgsdfg"
+; StackSize       = 8192
+; RuntimeDebug    = 0
+; DebugInfo       = 0
+; CreateDbgFile   = 0
+; OverflowCheck   = 0
+; AssemblerCheck  = 0
+; InterruptCheck  = 1
+; AutoRun         = 1
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 21
+; CursorColumn    = 37
+; LabelSearch     = ""
+; LabelRemark     = 0
+; LabelAll        = 0
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 100
+; Max GadgetList  = 100
+; Max Queue       = 10
+; Max Screen      = 5
+; Max Shape       = 200
+; Max CopList     = 10
+; Max Sprite      = 20
+; Max Stencil     = 5
+; Max Module      = 5
+; Max Window      = 100
+; Max Anim        = 10
+; Max Sound       = 10
+; Max Bank        = 1
+; Max Buffer      = 10
+; Max Slice       = 10
+; Max Page        = 4
+; Max Tape        = 5
+; Max IntuiFont   = 10
+; Max MedModule   = 8
+; Max Palette     = 4
+; Max MenuList    = 100
+; Max BlitzFont   = 1
+; Max GTList      = 100
+; Max BitMap      = 10
+; Max IconInfo    = 1
+; Max NChunky     = 50
+; Max MUIObject   = 50
+; Max PTModule    = 5
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 100
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max XBSound     = 10
+; Max Chunky      = 20
+; /XTRA
+; *** DrawerGenieLha
+
+; To do
+
+Syntax 2
+optimize 4
+
+WBStartup
+
+XINCLUDE "dos.include.ab3"
+XINCLUDE "arexx.include.ab3"
+XINCLUDE "file.include.ab3"
+
+XINCLUDE "DrawerGenieDefs.ab3"
+
+error_SetFlags{0}
+
+#debug = 0
+#copybuffer = 65536
+
+ver$ = "$VER: DrawerGenieLha 0.2 (29.10.2023) by Rob Cranley"
+
+
+NEWTYPE .bordersizes
+  top.w
+  bottom.w
+  left.w
+  right.w
+End NEWTYPE
+
+
+DEFTYPE .b cancelflag, allflag, todo, refreshflag
+DEFTYPE .w numargs, i, iconcount, donecount, screenw, screenh, fontysize, progresswidth, progressmax, progresscurrent, progressopen, actionflags
+DEFTYPE .l memaddr, succ
+
+DEFTYPE .bordersizes borderwidths
+
+
+numargs = NumPars
+
+If numargs <> 1 Then End
+
+CNIF #debug
+  NPrint Par$(1)
+CEND
+memaddr = Vallong(Par$(1))
+
+CNIF #debug
+  NPrint "Address: ", Hex$(memaddr)
+CEND
+
+
+
+; *** Functions
+
+
+Statement openprogressbar{maxvalue.w}
+  SHARED screenw, screenh, fontysize, progresswidth, progressmax, progresscurrent, progressopen, cancelflag, actionflags
+
+  gadh.w = fontysize + 6
+  winw.w = 200
+  winh.w = 100
+
+  GTGZZPosition Off
+
+  Select actionflags
+    Case #a_list
+      title$ = "Listing..."
+    Case #a_pack
+      title$ = "Packing..."
+    Case #a_unpack
+      title$ = "Unpacking..."
+  End Select
+
+  flags.l = #WFLG_ACTIVATE + #WFLG_CLOSEGADGET + #WFLG_DEPTHGADGET + #WFLG_DRAGBAR
+  Window 0, screenw / 2 - winw / 2, screenh / 2 - winh / 2, winw, winh, flags, title$, 1, 2
+  iw.w = InnerWidth
+  ih.w = InnerHeight
+  GTButton 0, 0, 5, ih - gadh - 5, iw - 10, gadh, "Cancel", #PLACETEXT_IN
+
+  AttachGTList 0, 0
+
+  progresswidth = iw - 12
+  GTBevelBox 0, 0, 0, iw, ih, 0
+  GTBevelBox 0, 5, 25, progresswidth + 2, 16, 1
+  DefaultOutput
+
+  progressmax = maxvalue
+  progresscurrent = 0
+  progressopen = True
+  cancelflag = False
+
+End Statement
+
+
+Statement updateprogressbar{value.w}
+  SHARED helpers(), borderwidths, progresswidth, progresscurrent, progressmax
+
+  prevvalue.w = progresscurrent
+  If value > progressmax
+    value = progressmax
+  End If
+
+  progresscurrent = value
+  prevpixel.w = progresswidth * prevvalue / progressmax + borderwidths\left
+  currpixel.w = progresswidth * value / progressmax + borderwidths\left
+
+  WBox prevpixel + 6, 26 + borderwidths\top, currpixel + 6, 39 + borderwidths\top, 3
+
+End Statement
+
+
+Statement closeprogressbar{}
+  SHARED progressopen
+  progressopen = False
+
+  DetachGTList 0
+  Free GTList 0
+  CloseWindow 0
+
+End Statement
+
+
+
+; *** End of functions
+
+
+
+
+screenw = ScreenWidth
+screenh = ScreenHeight
+
+WbToScreen 0
+
+*wbscreen.Screen = Peek.l(Addr Screen(0))
+
+
+*fon.TextAttr = *wbscreen\Font
+If *fon
+  font$ = Peek$(*fon\ta_Name)
+  fontysize = *fon\ta_YSize
+Else
+  fontysize = 8
+  Request "DrawerGenie", "Error - Unable to get screen font!", "Quit"
+  End
+End If
+
+CNIF #debug
+  NPrint "font: ", font$
+  NPrint "size: ", fontysize
+CEND
+
+LoadFont 0, font$, fontysize
+
+
+borderwidths\top = *wbscreen\WBorTop + fontysize + 1
+borderwidths\left = *wbscreen\WBorLeft
+borderwidths\right = *wbscreen\WBorRight
+borderwidths\bottom = *wbscreen\WBorBottom
+
+
+
+
+
+If arexx_Init{"DRAWERGENIE" + Par$(1)} = False
+  CNIF #debug
+    NPrint "Unable to open ARexx port"
+  CEND
+  End
+End If
+
+
+
+If memaddr
+
+  iconcount = Peek.w(memaddr)
+  actionflags = Peek.w(memaddr + 2)
+  destpath$ = Peek$(memaddr + 4)
+
+  CNIF #debug
+    Print destpath$
+  CEND
+
+
+  If iconcount
+    CNIF #debug
+      NPrint ", size: ", 4 + 256 + iconcount * 256
+    CEND
+
+    Dim path$(iconcount)
+    For i = 1 To iconcount
+      path$(i) = Peek$(memaddr + 4 + i * 256)
+    Next i
+  End If
+
+  ;NPrint "pausing..."
+  ;Delay_ 1000
+
+  FreeMem_ memaddr, (iconcount + 1) * 256 + 4
+
+  If iconcount; > 1
+    openprogressbar{iconcount}
+    dos_Delete{"T:lhaoutput"}
+  Else
+    End
+  End If
+
+  archive$ = dos_FilePart{path$(1)} + ".lha"
+  homedir$ = dos_PathPart{path$(1)}
+
+  If Right$(homedir$, 1) <> ":"
+    If Right$(homedir$, 1) <> "/"
+      homedir$ + "/"
+    End If
+  End If
+
+
+
+  For i = 1 To iconcount
+    CNIF #debug
+      NPrint "Processing file: ", path$(i)
+    CEND
+
+    ;fullpath$ = iconlist()\path
+    ;fulldest$ = dos_AddPart{destpath$, dos_FilePart{path$(i)}}
+
+    ev.l = Event
+    If ev
+      Select ev
+        Case #IDCMP_GADGETUP
+          cancelflag = True
+        Case #IDCMP_CLOSEWINDOW
+          cancelflag = True
+      End Select
+    End If
+
+
+
+    Select actionflags
+      Case #a_list
+        If dos_IsFile{path$(i)}
+          Execute_ "lha l \\22" + path$(i) + "\\22 >>T:lhaoutput", 0, 0
+          ;Execute_ "\\22" + destpath$ + "\\22 t:lhaoutput", 0, 0
+        End If
+
+      Case #a_unpack
+        If dos_IsFile{path$(i)}
+          cmd$ = "lha x \\22" + path$(i) + "\\22 \\22" + destpath$ + "\\22 >>T:lhaoutput"
+          CNIF #debug
+            NPrint "Unpacking ", path$(i), " to ", destpath$
+            NPrint "Line: ", cmd$
+          CEND
+          Execute_ cmd$, 0, 0
+          refreshflag = True
+        End If
+
+      Case #a_pack
+        todo = True
+        archive$ = dos_AddPart{destpath$, archive$}
+        If dos_Exist{archive$}
+          If allflag = 0
+            req.w = Request("DrawerGenie", "Warning: File|" + archive$ + "|already exists", "Overwrite|Overwrite all|Skip|Skip all|Cancel")
+            Select req
+              Case 0 ; Cancel
+                todo = False
+                cancelflag = True
+              Case 1 ; Overwrite
+              Case 2 ; Overwrite all
+                allflag = #alloverwrite
+              Case 3 ; Skip
+                todo = False
+              Case 4 ; Skip all
+                todo = False
+                allflag = #allskip
+            End Select
+          Else
+            If allflag = #allskip
+              todo = False
+            End If
+          End If
+          If todo
+            succ.l = dos_Delete{archive$}
+          End If
+
+        End If
+
+        If todo
+          cmd$ = "lha -arxZ a \\22" + archive$ + "\\22 \\22" + homedir$ + "\\22 \\22" + dos_FilePart{path$(i)} + "\\22 >>T:lhaoutput"
+          CNIF #debug
+            NPrint cmd$
+          CEND
+          Execute_ cmd$, 0, 0
+
+          CNIF #debug
+            NPrint "checking for .info file: " + path$(i) + ".info"
+          CEND
+          If dos_Exist{path$(i) + ".info"}
+            iconfullpath$ = path$(i) + ".info"
+            cmd$ = "lha -arxZ a \\22" + archive$ + "\\22 \\22" + homedir$ + "\\22 \\22" + dos_FilePart{path$(i)} + ".info\\22 >>T:lhaoutput"
+            Execute_ cmd$, 0, 0
+          End If
+
+          refreshflag = True
+
+        End If
+
+
+    End Select
+
+    donecount + 1
+    updateprogressbar{donecount}
+
+    If cancelflag
+      i = iconcount
+    End If
+
+  Next i
+
+  If actionflags = #a_list
+    Execute_ "\\22" + destpath$ + "\\22 t:lhaoutput", 0, 0
+  End If
+
+
+  If iconcount Then closeprogressbar{}
+
+  If refreshflag
+    arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + destpath$ + "\\22 INVOKE WINDOW.UPDATE"}
+  End If
+
+  CNIF #debug
+    NPrint iconcount, " icons to process to ", destpath$
+    For i = 1 To iconcount
+      NPrint path$(i)
+    Next i
+  CEND
+Else
+  CNIF #debug
+    NPrint "Invalid memory address"
+  CEND
+End If
+
+
+End
+

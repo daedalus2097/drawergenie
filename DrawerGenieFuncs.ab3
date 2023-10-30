@@ -1,0 +1,1008 @@
+; XTRA
+; Embedded .xtra Header
+; 
+; General Info
+; -------------------------------------------------------
+; ExePath         = "DrawerHelper"
+; ExeFile         = "DrawerHelper"
+; CreateIcon      = 1
+; Residents       = "all.res"
+; 
+; Compiler
+; -------------------------------------------------------
+; StringBuffer    = 10240
+; MakeSmallest    = 1
+; FuncOptimize    = 1
+; Version         = 0.0.0
+; NumberOfBuilds  = 414
+; 
+; Debugger
+; -------------------------------------------------------
+; CliArgs         = ""
+; StackSize       = 80000
+; RuntimeDebug    = 1
+; DebugInfo       = 0
+; CreateDbgFile   = 65535
+; OverflowCheck   = 0
+; AssemblerCheck  = 0
+; InterruptCheck  = 1
+; AutoRun         = 1
+; 
+; Editor
+; -------------------------------------------------------
+; CursorLine      = 921
+; CursorColumn    = 1
+; LabelSearch     = ""
+; LabelRemark     = 0
+; LabelAll        = 0
+; LabelPosition   = 0
+; 
+; Blitz Objects
+; -------------------------------------------------------
+; Max File        = 5
+; Max GadgetList  = 5
+; Max Queue       = 10
+; Max Screen      = 5
+; Max Shape       = 100
+; Max CopList     = 10
+; Max Sprite      = 20
+; Max Stencil     = 5
+; Max Module      = 5
+; Max Window      = 20
+; Max Anim        = 10
+; Max Sound       = 10
+; Max Bank        = 5
+; Max Buffer      = 10
+; Max Slice       = 10
+; Max Page        = 4
+; Max Tape        = 5
+; Max IntuiFont   = 5
+; Max MedModule   = 8
+; Max Palette     = 4
+; Max MenuList    = 5
+; Max BlitzFont   = 4
+; Max GTList      = 20
+; Max BitMap      = 10
+; Max IconInfo    = 1
+; Max NChunky     = 50
+; Max MUIObject   = 50
+; Max PTModule    = 5
+; Max AsyncReq    = 4
+; Max Req-Lib     = 5
+; Max GTMenuList  = 5
+; Max Console     = 5
+; Max TCPSock     = 5
+; Max XBSound     = 10
+; Max Chunky      = 20
+; /XTRA
+
+; *** Functions for DrawerGenie.ab3
+
+
+Function.w getnewhelperid{}
+  SHARED helpers()
+  result.w = 0
+  For i.w = 1 To #maxhelpers
+    If helpers(i)\inuse = False
+      result = i
+      i = #maxhelpers
+    End If
+  Next i
+  Function Return result
+End Function
+
+
+Function.w nexthelper{currenthelper.w}
+  SHARED helpers()
+  result.w = 0;currenthelper
+  count.w = 0
+  helperid.w = currenthelper
+  For i.w = 1 To #maxhelpers
+    helperid + 1
+    If helperid > #maxhelpers Then helperid = 1
+    If helpers(helperid)\inuse
+      result = helperid
+      i = #maxhelpers
+    End If
+  Next i
+  Function Return result
+End Function
+
+
+Function.w helperopen{winaddr.l}
+  SHARED helpers()
+  result.w = 0
+  For i.w = 1 To #maxhelpers
+    If helpers(i)\inuse
+      If helpers(i)\hostwinaddr = winaddr
+        result = i
+        i = #maxhelpers
+      End If
+    End If
+  Next i
+  Function Return result
+End Function
+
+
+Statement setsource{helperid.w}
+  SHARED helpers(), sourcewin, destwin
+  sourcewin = helperid
+  helpers(helperid)\source = 1
+  If helpers(helperid)\dest
+    helpers(helperid)\dest = 0
+    GTToggle helperid, #dest, 0
+    destwin = 0
+  End If
+
+  For i.w = 1 To #maxhelpers
+    If helpers(i)\source
+      If i <> helperid
+        helpers(i)\source = 0
+        GTToggle i, #source, 0
+      End If
+    End If
+  Next i
+End Statement
+
+
+Statement setdest{helperid.w}
+  SHARED helpers(), sourcewin, destwin
+  destwin = helperid
+  helpers(helperid)\dest = 1
+  If helpers(helperid)\source
+    helpers(helperid)\source = 0
+    GTToggle helperid, #source, 0
+    sourcewin = 0
+  End If
+
+  For i.w = 1 To #maxhelpers
+    If helpers(i)\dest
+      If i <> helperid
+        helpers(i)\dest = 0
+        GTToggle i, #dest, 0
+      End If
+    End If
+  Next i
+
+End Statement
+
+
+Statement removehelper{helperid.w}
+  SHARED helpers()
+
+  ; Check if any outstanding tasks for this helper?
+  If helpers(helperid)\inuse
+    DetachGTList helperid
+    CloseWindow helperid
+    Free GTList helperid
+    helpers(helperid)\inuse = False
+  Else
+    CNIF #debug
+      NPrint "Warning: Tried to close helper that wasn't in use"
+    CEND
+  End If
+End Statement
+
+
+
+
+; Include a helper ID of 0 to pick next available ID, include an actual ID and it will only succeed if that ID is available
+; Include a helper ID to copy the history over from that helper
+Function.w addhelper{copyhistory.w} ;helper.w}
+  SHARED helpers(), prefs, *ibase, borderwidths, gadgets(), sourcewin, destwin
+  result.w = False
+  DEFTYPE .wbwindow rexxwindow, intuiwindow
+
+  ;iblock.l = LockIBase_(0)
+  arexx_SendMessage{"WORKBENCH", "GETATTR WINDOWS.ACTIVE"}
+  winname$ = arexx_GetResultString{}
+  If winname$ <> "" AND winname$ <> "root"
+    arexx_SendMessage{"WORKBENCH", "GETATTR WINDOW.LEFT NAME \\22" + winname$ + "\\22"}
+    rexxwindow\winx = Vallong(arexx_GetResultString{})
+    arexx_SendMessage{"WORKBENCH", "GETATTR WINDOW.TOP NAME \\22" + winname$ + "\\22"}
+    rexxwindow\winy = Vallong(arexx_GetResultString{})
+    arexx_SendMessage{"WORKBENCH", "GETATTR WINDOW.WIDTH NAME \\22" + winname$ + "\\22"}
+    rexxwindow\winw = Vallong(arexx_GetResultString{})
+    arexx_SendMessage{"WORKBENCH", "GETATTR WINDOW.HEIGHT NAME \\22" + winname$ + "\\22"}
+    rexxwindow\winh = Vallong(arexx_GetResultString{})
+    rexxwindow\title = winname$
+
+    ef.b = False
+    iblock.l = LockIBase_(0)
+    *currentwin.Window = *ibase\ActiveWindow
+    If *currentwin\LeftEdge <> rexxwindow\winx Then ef + 1
+    If *currentwin\TopEdge <> rexxwindow\winy Then ef + 2
+    If *currentwin\Width <> rexxwindow\winw Then ef + 4
+    If *currentwin\Height <> rexxwindow\winh Then ef + 8
+
+    name$ = Peek$(*currentwin\Title)
+    UnlockIBase_ iblock
+
+    USEPATH helpers(newhelperid)
+
+    If ef = 0
+      helpercheck.w = helperopen{*currentwin}
+      If helpercheck ; There's already a helper open for this window
+        removehelper{helpercheck}
+        CNIF #debug
+          NPrint "Helper already open at ID ", helpercheck, ", position updated"
+        CEND
+
+      Else ; This is a new helper window
+        newhelperid.w = getnewhelperid{}
+
+        If newhelperid
+          If copyhistory
+            CNIF #debug
+              NPrint "Copying history from helper ", copyhistory
+            CEND
+            For i.w = 0 To #maxhistory - 1
+              \history[i] = helpers(copyhistory)\history[i]
+            Next i
+            \historystart = helpers(copyhistory)\historystart
+            \historycount = helpers(copyhistory)\historycount
+            \historycurrent = helpers(copyhistory)\historycurrent
+
+
+
+          Else ; erase the history
+            \historycount = 0
+            \historycurrent = 0
+          End If
+
+          \inuse = True
+          \hostwinaddr = *currentwin
+          CNIF #debug
+            NPrint "Opening new helper ID ", newhelperid
+            NPrint "Win top border: ", *currentwin\BorderTop
+            NPrint "Win right border: ", *currentwin\BorderRight
+          CEND
+          \winx = rexxwindow\winx
+          \winy = rexxwindow\winy
+          \winw = rexxwindow\winw
+          \winh = rexxwindow\winh
+          \title = name$
+          \path = rexxwindow\title
+
+          \helperx = \winx + *currentwin\BorderLeft ;borderwidths\left
+          \helpery = \winy + *currentwin\BorderTop ;borderwidths\top
+          \helperw = \winw - *currentwin\BorderLeft - *currentwin\BorderRight ;borderwidths\left - borderwidths\right - 12
+          \helperh = 18
+
+
+          flags.l = #WFLG_BORDERLESS
+          \helperwinaddr = Window(newhelperid, \helperx, \helpery, \helperw, \helperh, flags, "", 1, 2)
+          DefaultOutput
+
+          If \helperwinaddr
+            GTGZZPosition On
+            xpos.w = 1
+            For i.w = 0 To #maxgadgets - 1
+              If gadgets(i) > 0
+                CNIF #debug
+                  NPrint "Creating gadget ", gadgets(i)
+                CEND
+                If gadgets(i) = 999
+                  xpos + 10
+                Else
+                  If gadgets(i) = #source OR gadgets(i) = #dest
+                    flags = $2000
+                  Else
+                    flags = 0
+                  End If
+                  flags + $80 ; Report gadget down event
+                  succ.l = GTShape(newhelperid, gadgets(i), xpos, 1, flags, gadgets(i), gadgets(i) + #selectedoffset)
+                  xpos + 16
+                End If
+              End If
+            Next i
+
+            AttachGTList newhelperid, newhelperid
+            GTBevelBox newhelperid, 0, 0, \helperw, \helperh, 0
+
+            If prefs\scrolldown
+              ; This only moves up either by a pixel, by a page, or by a proportion of the window size. No option for 18 pixels...
+              arexx_SendMessage{"WORKBENCH", "VIEW \\22" + helpers(newhelperid)\path + "\\22 UP"}
+            End If
+            result = newhelperid ;True
+
+            If copyhistory
+              ; Also copy src/dst status and disable status from previous helper
+              CNIF #debug
+                NPrint "Copying src/dest, src: ", sourcewin, ", dest: ", destwin, ", oldwin: ", copyhistory
+              CEND
+              If destwin = copyhistory
+                CNIF #debug
+                  NPrint "Setting new window as destination"
+                CEND
+                GTToggle newhelperid, #dest, On
+                setdest{newhelperid}
+              End If
+
+              If sourcewin = copyhistory
+                CNIF #debug
+                  NPrint "Setting new window as source"
+                CEND
+                GTToggle newhelperid, #source, On
+                setsource{newhelperid}
+              End If
+                                                                                                                                                                                                                                            
+                                                                                                                                                                                                                                            
+            End If
+          Else
+            Request "DrawerGenie", "Error - Unable to open helper window", "Cancel"
+            \inuse = False
+          End If
+        End If
+      End If
+    Else
+      CNIF #debug
+        NPrint "Window dimension mismatch between Rexx and Intuition, aborting (", ef, ")"
+        NPrint "X: ", rexxwindow\winx
+        NPrint "Y: ", rexxwindow\winy
+        NPrint "W: ", rexxwindow\winw
+        NPrint "H: ", rexxwindow\winh
+      CEND
+    End If
+  End If
+
+  CNIF #debug
+    NPrint "Intuition name: ", name$
+    NPrint "Rexx name: ", rexxwindow\title
+  CEND
+
+  Function Return result
+End Function
+
+
+Function.b helperstatus{helperid.w}
+  SHARED helpers(), taglist()
+  USEPATH helpers(helperid)
+  result.b = 0
+  *checkwin.Window = \hostwinaddr
+  If *checkwin\LeftEdge <> \winx
+    \winx = *checkwin\LeftEdge
+    result | %1
+  End If
+  If *checkwin\TopEdge <> \winy
+    \winy = *checkwin\TopEdge
+    result | %1
+  End If
+  If *checkwin\Width <> \winw
+    \winw = *checkwin\Width
+    result | %10
+  End If
+  If *checkwin\Height <> helpers(helperid)\winh
+    \winh = *checkwin\Height
+    result | %100
+  End If
+
+  res.l = 0
+  taglist(0)\ti_Tag = #WBCTRLA_IsOpen, &res
+  taglist(1)\ti_Tag = #TAG_DONE
+  WorkbenchControlA_ &helpers(helperid)\path, &taglist(0)
+  If res = 0
+    result = 16
+  End If
+
+  Function Return result
+End Function
+
+
+Function.w getselectedicons{}
+  SHARED helpers(), iconlist(), taglist()
+  DEFTYPE .List *seliconslist
+  DEFTYPE .Node *node
+
+  result.w = 0
+  ClearList iconlist()
+  CNIF #debug
+    NPrint "Checking for selected icons..."
+  CEND
+  taglist(0)\ti_Tag = #WBCTRLA_GetSelectedIconList, &*seliconslist
+  taglist(1)\ti_Tag = #TAG_DONE
+  If WorkbenchControlA_(0, &taglist(0))
+    CNIF #debug
+      NPrint "Listing selected icons..."
+    CEND
+    If *seliconslist
+      *node = *seliconslist\lh_Head
+      While *node\ln_Succ
+        name$ = Peek$(*node\ln_Name)
+
+        result + 1
+        If AddItem(iconlist())
+          iconlist()\path = name$
+          CNIF #debug
+            NPrint name$
+          CEND
+          If dos_IsDir{name$}
+            iconlist()\kind = #WBDRAWER
+          Else
+            iconlist()\kind = 0
+          End If
+        End If
+        *node = *node\ln_Succ
+      End While
+    End If
+
+    taglist(0)\ti_Tag = #WBCTRLA_FreeSelectedIconList, *seliconslist
+    WorkbenchControlA_ 0, &taglist(0)
+  End If
+
+  Function Return result
+End Function
+
+
+
+
+Statement openprefs{}
+  SHARED prefs, prefsopen, fontysize, screenw, screenh
+
+  winw.w = 500
+  winh.w = 200
+
+  flags.l = #WFLG_ACTIVATE|#WFLG_CLOSEGADGET|#WFLG_DEPTHGADGET|#WFLG_DRAGBAR|#WFLG_NEWLOOKMENUS
+  *win.Window = Window(0, screenw / 2 - winw / 2, screenh / 2 - winh / 2, winw, winh, flags, "DrawerGenie Preferences", 1, 2)
+  If *win
+    GTGZZPosition Off
+    prefsopen = True
+    iw.w = InnerWidth
+    ih.w = InnerHeight
+    butwidth.w = iw / 3 - 7
+    buth.w = fontysize + 6
+    GTCheckBox 0, #p_closeprev, iw - buth - 10, 10, buth, buth, "Close child when opening parent", #PLACETEXT_LEFT|$200
+    GTString 0, #p_viewer, 200, 34, iw - 211 - buth, buth, "Default viewer path", #PLACETEXT_LEFT, 255, prefs\viewer
+    GTButton 0, #p_viewerselect, iw - 10 - buth, 34, buth, buth, "?", #PLACETEXT_IN
+    GTString 0, #p_homedir, 200, 58, iw - 211 - buth, buth, "Home Directory", #PLACETEXT_LEFT, 255, prefs\homedir
+    GTButton 0, #p_homedirselect, iw - 10 - buth, 58, buth, buth, "?", #PLACETEXT_IN
+    GTString 0, #p_toolbarhotkey, 200, 82, 80, buth, "Toolbar Hotkey", #PLACETEXT_LEFT, 25, prefs\toolbarhotkey
+    GTString 0, #p_openhotkey, iw - 90, 82, 80, buth, "Open Hotkey", #PLACETEXT_LEFT, 25, prefs\openhotkey
+    GTButton 0, #p_edittoolbar, 200, 106, iw - 210, buth, "Edit Toolbar...", #PLACETEXT_IN
+
+    GTButton 0, #p_save, 5, ih - buth - 5, butwidth, buth, "Save", #PLACETEXT_IN
+    GTButton 0, #p_use, iw / 2 - butwidth / 2, ih - buth - 5, butwidth, buth, "Use", #PLACETEXT_IN
+    GTButton 0, #p_cancel, iw - butwidth - 5, ih - buth - 5, butwidth, buth, "Cancel", #PLACETEXT_IN
+
+    AttachGTList 0, 0
+    GTBevelBox 0, 0, 0, iw, ih, 0
+    If prefs\closeprevious
+      GTToggle 0, 0, On
+    End If
+    DefaultOutput
+
+    GTSetMenu 0
+  Else
+    Request "DrawerGenie", "Error - Unable to open Preferences window", "Cancel"
+  End If
+
+End Statement
+
+
+Statement closeprefs{}
+  SHARED prefsopen
+
+  DetachGTList 0
+  CloseWindow 0
+  Free GTList 0
+End Statement
+
+
+Statement cut{helperid.w}
+  SHARED iconlist(), helpers()
+  If WriteFile(0, "T:WBCutnPaste")
+    FileOutput 0
+    NPrint "CUT"
+    pt$ = helpers(helperid)\path
+    If Right$(pt$, 1) <> ":" ; This is only needed for compatibility with ARexx cut/copy/paste scripts, which should be fixed...
+      pt$ + "/"
+    End If
+
+    NPrint pt$ ;helpers(helperid)\path
+    ResetList iconlist()
+    While NextItem(iconlist())
+      If dos_PathPart{iconlist()\path} = helpers(helperid)\path
+        fl$ = dos_FilePart{iconlist()\path}
+        If fl$ <> ""
+          NPrint fl$
+        End If
+      End If
+    End While
+    CloseFile 0
+    DefaultOutput
+  Else
+    CNIF #debug
+      NPrint "Can't open temp file!"
+    CEND
+  End If
+End Statement
+
+
+Statement copy{helperid.w}
+  SHARED iconlist(), helpers()
+  If WriteFile(0, "T:WBCutnPaste")
+    FileOutput 0
+    NPrint "COPY"
+    pt$ = helpers(helperid)\path
+    If Right$(pt$, 1) <> ":" ; This is only needed for compatibility with ARexx cut/copy/paste scripts, which should be fixed...
+      pt$ + "/"
+    End If
+
+    NPrint pt$ ;helpers(helperid)\path
+    ResetList iconlist()
+
+    While NextItem(iconlist())
+      If dos_PathPart{iconlist()\path} = helpers(helperid)\path
+        fl$ = dos_FilePart{iconlist()\path}
+        If fl$ <> ""
+          NPrint fl$
+        End If
+      End If
+    End While
+    CloseFile 0
+    DefaultOutput
+  Else
+    CNIF #debug
+      NPrint "Can't open temp file!"
+    CEND
+  End If
+End Statement
+
+
+Statement paste{helperid.w}
+  SHARED helpers(), activateflag, prefs
+
+  If ReadFile(0, "T:WBCutnPaste")
+    Dim List fname$(0)
+
+    FileInput 0
+    task$ = Edit$(10)
+    If task$ = "CUT"
+      cut.b = True
+    Else
+      cut.b = False
+    End If
+
+    pt$ = Edit$(255)
+    fn$ = Edit$(255)
+
+    samedir.b = False
+    samevol.b = False
+    refreshsrc.b = False
+    refreshdest.b = False
+
+    CNIF #debug
+      NPrint "*** Action: ", task$
+      NPrint "Source: ", pt$
+      NPrint "Dest: ", helpers(helperid)\path
+    CEND
+
+    srclock.l = Lock_(&pt$, #ACCESS_READ)
+    destlock.l = Lock_(&helpers(helperid)\path, #ACCESS_READ)
+
+    If srclock
+      If destlock
+        samelock.l = SameLock_(srclock, destlock)
+        If samelock = #LOCK_SAME
+          samedir = True
+          CNIF #debug
+            NPrint "Same dir!"
+          CEND
+        End If
+        If samelock = #LOCK_SAME_VOLUME
+          samevol = True
+          CNIF #debug
+            NPrint "Same volume!"
+          CEND
+        End If
+        CNIF #debug
+          NPrint "Locks obtained"
+        CEND
+        UnLock_ destlock
+      Else
+        CNIF #debug
+          NPrint "Unable to obtain destination lock"
+        CEND
+      End If
+
+      UnLock_ srclock
+    End If
+
+
+
+    copyflags.w = 0
+    iconcount.w = 0
+
+    If samevol
+      copyflags + #c_move
+    End If
+    If cut
+      copyflags + #c_delete
+    End If
+
+
+    While fn$ <> ""
+      If AddItem(fname$())
+        iconcount + 1
+        fname$() = fn$
+      End If
+      fn$ = Edit$(255)
+    End While
+
+    CloseFile 0
+    DefaultInput
+
+
+    pathsbuffer.l = AllocMem_(256 * (iconcount + 1) + 4, 0)
+    If pathsbuffer
+      Poke.w pathsbuffer, iconcount
+      Poke.w pathsbuffer + 2, copyflags
+      Poke$ pathsbuffer + 4, helpers(helperid)\path
+      ResetList fname$()
+      For i.w = 0 To iconcount - 1
+        If NextItem(fname$())
+          Poke$ pathsbuffer + 4 + 256 + i * 256, dos_AddPart{pt$, fname$()}
+        End If
+      Next i
+    Else
+      Request "DrawerGenie", "Error - Unable to allocate memory", "Cancel"
+    End If
+                                                                                                                                                                                                                                                      
+    command$ = "run \\22" + dos_AddPart{prefs\homedir, "DrawerGenieCopy\\22"} + " " + Str$(pathsbuffer) + " >T:test.txt"
+    CNIF #debug
+      NPrint "Sending: ", Hex$(pathsbuffer), ", Size: ", 4 + 256 + iconcount * 256
+    CEND
+    Execute_ command$, 0, 0
+                                                                                                                                                                                                                                                      
+
+    If cut
+      dos_Delete{"T:WBCutnPaste"}
+    End If
+  Else
+    CNIF #debug
+      NPrint "Can't open temp file!"
+    CEND
+  End If
+End Statement
+
+
+Statement opendrawer{name$}
+  arexx_SendMessage{"WORKBENCH", "WINDOW \\22" + name$ + "\\22 OPEN"}
+  arexx_SendMessage{"WORKBENCH", "WINDOW \\22" + name$ + "\\22 ACTIVATE"}
+End Statement
+
+
+Function.s historyback{helper.w}
+  SHARED helpers()
+  result$ = ""
+  If helpers(helper)\historycount > 1
+    helpers(helper)\historycount - 1
+    helpers(helper)\historycurrent - 1
+    If helpers(helper)\historycurrent = -1
+      helpers(helper)\historycurrent = #maxhistory - 1
+    End If
+    result$ = helpers(helper)\history[helpers(helper)\historycurrent]
+  End If
+
+  CNIF #debug
+    NPrint "History back: count: ", helpers(helper)\historycount, ", current: ", helpers(helper)\historycurrent, ", path: ", result$
+  CEND
+
+  Function Return result$
+End Function
+
+
+Statement historyadd{helper.w, name$}
+  SHARED helpers()
+  If helpers(helper)\historycount < #maxhistory
+    helpers(helper)\historycount + 1
+  End If
+
+  helpers(helper)\historycurrent + 1
+  If helpers(helper)\historycurrent = #maxhistory
+    helpers(helper)\historycurrent = 0
+  End If
+  helpers(helper)\history[helpers(helper)\historycurrent] = name$
+
+  CNIF #debug
+    NPrint "History add: count: ", helpers(helper)\historycount, ", current: ", helpers(helper)\historycurrent, ", path: ", name$
+  CEND
+
+End Statement
+
+
+Statement historyclear{helper.w}
+  SHARED helpers()
+  helpers(helper)\historycount = 0
+  helpers(helper)\historycurrent = 0
+End Statement
+
+
+Statement prefsload{}
+  SHARED prefs, gadgets(), lastgadget
+
+  If ReadFile(0, "ENV:drawergenie.prefs")
+    FileInput 0
+      prefs\viewer = Edit$(255)
+      prefs\closeprevious = Edit(10)
+      prefs\spawnhelper = Edit(10)
+      prefs\scrolldown = Edit(10)
+      prefs\addcopypastemenus = Edit(10)
+      prefs\findnewwindows = Edit(10)
+      prefs\toolbarhotkey = Edit$(32)
+      prefs\openhotkey = Edit$(32)
+      lastgadget = Edit(10)
+      For i.w = 0 To lastgadget
+        gadgets(i) = Edit(10)
+      Next i
+    PopInput
+    CloseFile 0
+  Else
+    CNIF #debug
+      NPrint "Error - unable to load prefs file"
+    CEND
+  End If
+
+  prefs\homedir = dos_GetToolString{"HOMEDIR", ""}
+
+End Statement
+
+
+Statement prefssave{save.b} ; True = save in ENVARC:, false = save in ENV:
+  SHARED prefs, gadgets(), lastgadget
+  If save
+    fn$ = "ENVARC:drawergenie.prefs"
+  Else
+    fn$ = "ENV:drawergenie.prefs"
+  End If
+
+  If WriteFile(0, fn$)
+    FileOutput 0
+      NPrint prefs\viewer
+      NPrint prefs\closeprevious
+      NPrint prefs\spawnhelper
+      NPrint prefs\scrolldown
+      NPrint prefs\addcopypastemenus
+      NPrint prefs\findnewwindows
+      NPrint prefs\toolbarhotkey
+      NPrint prefs\openhotkey
+      NPrint lastgadget
+      For i.w = 0 To lastgadget
+        NPrint gadgets(i)
+      Next i
+    PopOutput
+    CloseFile 0
+  Else
+    Request "DrawerGenie", "Error - unable to write preferences", "Cancel"
+  End If
+  dos_SetToolString{"HOMEDIR", prefs\homedir}
+End Statement
+
+
+Statement getprefs{}
+  SHARED prefs
+
+  prefs\viewer = GTGetString(0, #p_viewer)
+  prefs\closeprevious = GTStatus(0, #p_closeprev)
+
+  hk$ = GTGetString(0, #p_toolbarhotkey)
+  If hk$ <> prefs\toolbarhotkey
+    CNIF #debug
+      NPrint "Setting hotkey: ", SetHotKey(#h_toolbar, hk$)
+    CEND
+  End If
+  prefs\toolbarhotkey = hk$
+
+  hk$ = GTGetString(0, #p_openhotkey)
+  If hk$ <> prefs\toolbarhotkey
+    CNIF #debug
+      NPrint "Setting hotkey: ", SetHotKey(#h_open, hk$)
+    CEND
+  End If
+  prefs\openhotkey = hk$
+
+  prefs\homedir = GTGetString(0, #p_homedir)
+End Statement
+
+
+;Statement disablehelper{ew.w}
+;  SHARED helpers(), gadgets()
+;
+;  If helpers(ew)\winlock = 0 ;progressopen = False
+;
+;    helpers(ew)\winlock = AllocMem_(SizeOf.Requester, 1)
+;    If helpers(ew)\winlock
+;
+;      winptr.l = Peek.l(Addr Window(ew))
+;      InitRequester_(helpers(ew)\winlock)
+;      If Request_(helpers(ew)\winlock, winptr)
+;        SetWindowPointerA_ winptr, Tags(#WA_BusyPointer, -1)
+;      Else
+;        FreeMem_ helpers(ew)\winlock, SizeOf.Requester
+;        helpers(ew)\winlock = 0
+;      EndIf
+;    End If
+;  End If
+;
+;End Statement
+;
+;
+;Statement enablehelper{ew.w}
+;  SHARED helpers(), gadgets()
+;
+;  If helpers(ew)\winlock <> 0
+;    winptr.l = Peek.l(Addr Window(ew))
+;    SetWindowPointerA_ winptr, Tags(#TAG_END, 0)
+;    EndRequest_ helpers(ew)\winlock, winptr
+;    FreeMem_ helpers(ew)\winlock, SizeOf.Requester
+;    helpers(ew)\winlock = 0
+;  End If
+;
+;End Statement
+
+
+Function.w opendropdown{ew.w, gh.w, count.b}
+  SHARED helpers(), borderwidths, gadgetxpos()
+  popupx.w = helpers(ew)\helperx + gadgetxpos(gh)
+  popupy.w = helpers(ew)\helpery + 18
+  popuph.w = 16 * count + 2
+
+  flags.l = #WFLG_BORDERLESS
+  Window #w_popup, popupx, popupy, 18, popuph, flags, "", 1, 2
+
+  DefaultOutput
+
+  Select gh
+    Case #viewtype
+      GTShape #w_popup, 1, 1, 1, 0, #textview, #textview + #selectedoffset
+      GTShape #w_popup, 2, 1, 17, 0, #iconview, #iconview + #selectedoffset
+
+    Case #sort
+      GTShape #w_popup, 1, 1, 1, 0, #sortalpha, #sortalpha + #selectedoffset
+      GTShape #w_popup, 2, 1, 17, 0, #sortbydate, #sortbydate + #selectedoffset
+      GTShape #w_popup, 3, 1, 33, 0, #sortbysize, #sortbysize + #selectedoffset
+
+    Case #viewfiles
+      GTShape #w_popup, 1, 1, 1, 0, #onlyicons, #onlyicons + #selectedoffset
+      GTShape #w_popup, 2, 1, 17, 0, #allfiles, #allfiles + #selectedoffset
+
+  End Select
+
+  AttachGTList #w_popup, #w_popup
+  GTBevelBox #w_popup, 0, 0, 18, popuph, 0
+
+  prevgad.w = 0
+
+  While Joyb(0) ; Bad Rob!
+    Delay_ 1
+    ev.l = Event
+
+    mx.w = SMouseX - popupx
+    my.w = SMouseY - popupy
+    currentgad.w = 0
+    If mx > 1
+      If mx < 17
+        If my > 1
+          If my < 16 * count + 1
+            currentgad.w = my / 16 + 1
+            If currentgad
+              GTToggle #maxhelpers + 1, currentgad, On
+            End If
+
+          End If
+        End If
+      End If
+    End If
+
+
+    If currentgad <> prevgad
+      If prevgad ; erase previous border
+        GTToggle #maxhelpers + 1, prevgad, Off
+      End If
+      prevgad = currentgad
+    End If
+
+
+  End While
+
+
+  DetachGTList #w_popup
+  CloseWindow #w_popup
+  Free GTList #w_popup
+  DefaultOutput
+  Function Return currentgad
+End Function
+
+
+Function.w stringpixels{text$}
+  SHARED helpers(), ew, *wbscreen
+
+  If ew > 0
+    *win.Window = helpers(ew)\helperwinaddr
+    result.w = TextLength_(*win\RPort, text$, Len(text$))
+  Else
+    result.w = 0
+  End If
+  Function Return result
+End Function
+
+
+Statement setcurrentgadget{gad.w}
+  SHARED selectedgadgets()
+
+  ResetList selectedgadgets()
+  For i.w = 0 To gad
+    x.l = NextItem(selectedgadgets())
+  Next i
+End Statement
+
+
+Statement openedittoolbar{}
+  SHARED prefs, gadgets(), allgadgets(), selectedgadgets(), availablegadgets(), toolbareditopen, fontysize, lastgadget
+  sw.w = ScreenWidth
+  sh.w = ScreenHeight
+
+  winw.w = 400
+  winh.w = 200
+  winx.w = sw / 2 - winw / 2
+  winy.w = sh / 2 - winh / 2
+
+  flags.l = #WFLG_ACTIVATE|#WFLG_CLOSEGADGET|#WFLG_DEPTHGADGET|#WFLG_DRAGBAR
+  Window #w_toolbaredit, winx, winy, winw, winh, flags, "DrawerGenie - Edit Toolbar", 1, 2
+  toolbareditopen = True
+  DefaultOutput
+
+  iw.w = InnerWidth
+  ih.w = InnerHeight
+
+  butw.w = iw / 2 - 7
+  buth.w = fontysize + 6
+
+  butw2.w = iw - 300 - 20
+  ClearList selectedgadgets()
+  For i.w = 0 To lastgadget
+    If gadgets(i)
+      If AddItem(selectedgadgets())
+        If gadgets(i) = 999
+          selectedgadgets()\id = 999
+          selectedgadgets()\name = allgadgets(0)\name
+        Else
+          selectedgadgets()\id = gadgets(i)
+          selectedgadgets()\name = allgadgets(gadgets(i))\name
+        End If
+      End If
+    End If
+  Next i
+
+  GTNewLookProp On
+
+  GTTags #GTLV_ShowSelected, 0
+  GTListView #w_toolbaredit, #e_allgadgets, 5, 25, 150, ih - 60, "Available Gadgets", #PLACETEXT_ABOVE, availablegadgets(), 0
+
+  GTTags #GTLV_ShowSelected, 0
+  GTListView #w_toolbaredit, #e_toolbar, iw - 155, 25, 150, ih - 60, "Toolbar", #PLACETEXT_ABOVE, selectedgadgets(), 0
+
+  GTButton #w_toolbaredit, #e_add, 160, 25, butw2, buth, "Add", #PLACETEXT_IN
+  GTButton #w_toolbaredit, #e_remove, 160, 49, butw2, buth, "Remove", #PLACETEXT_IN
+  GTButton #w_toolbaredit, #e_moveup, 160, 80, butw2, buth, "Up", #PLACETEXT_IN
+  GTButton #w_toolbaredit, #e_movedown, 160, 104, butw2, buth, "Down", #PLACETEXT_IN
+
+
+  GTButton #w_toolbaredit, #e_use, 5, ih - buth - 5, butw, buth, "Use", #PLACETEXT_IN
+  GTButton #w_toolbaredit, #e_cancel, iw - butw - 5, ih - buth - 5, butw, buth, "Cancel", #PLACETEXT_IN
+  AttachGTList #w_toolbaredit, #w_toolbaredit
+
+  setcurrentgadget{0}
+
+End Statement
+
+
+Statement closeedittoolbar{}
+  SHARED prefs, gadgets(), toolbareditopen
+
+  DetachGTList #w_toolbaredit
+  CloseWindow #w_toolbaredit
+  Free GTList #w_toolbaredit
+  toolbareditopen = False
+End Statement
+
