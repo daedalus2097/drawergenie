@@ -14,13 +14,13 @@
 ; MakeSmallest    = 1
 ; FuncOptimize    = 1
 ; Version         = 0.0.0
-; NumberOfBuilds  = 847
+; NumberOfBuilds  = 859
 ; 
 ; Debugger
 ; -------------------------------------------------------
 ; CliArgs         = ""
 ; StackSize       = 80000
-; RuntimeDebug    = 1
+; RuntimeDebug    = 0
 ; DebugInfo       = 0
 ; CreateDbgFile   = 65535
 ; OverflowCheck   = 0
@@ -30,8 +30,8 @@
 ; 
 ; Editor
 ; -------------------------------------------------------
-; CursorLine      = 1434
-; CursorColumn    = 16
+; CursorLine      = 236
+; CursorColumn    = 53
 ; LabelSearch     = ""
 ; LabelRemark     = 0
 ; LabelAll        = 0
@@ -41,47 +41,48 @@
 ; -------------------------------------------------------
 ; Max File        = 5
 ; Max GadgetList  = 5
-; Max Queue       = 10
-; Max Screen      = 5
 ; Max Shape       = 100
-; Max CopList     = 10
-; Max Sprite      = 20
-; Max Stencil     = 5
-; Max Module      = 5
-; Max Window      = 20
-; Max Anim        = 10
-; Max Sound       = 10
 ; Max Bank        = 5
-; Max Buffer      = 10
-; Max Slice       = 10
-; Max Page        = 4
-; Max Tape        = 5
-; Max IntuiFont   = 5
-; Max MedModule   = 8
-; Max Palette     = 4
 ; Max MenuList    = 5
-; Max BlitzFont   = 4
 ; Max GTList      = 50
+; Max Palette     = 4
 ; Max BitMap      = 10
+; Max Screen      = 5
+; Max IntuiFont   = 5
+; Max BlitzFont   = 4
+; Max Window      = 20
 ; Max IconInfo    = 1
-; Max NChunky     = 50
 ; Max MUIObject   = 50
-; Max PTModule    = 5
 ; Max AsyncReq    = 4
 ; Max Req-Lib     = 5
 ; Max GTMenuList  = 20
 ; Max Console     = 5
 ; Max TCPSock     = 5
-; Max XBSound     = 10
+; Max Tape        = 5
+; Max Sound       = 10
+; Max MedModule   = 8
+; Max Buffer      = 10
+; Max Queue       = 10
+; Max Sprite      = 20
+; Max Module      = 5
+; Max Slice       = 10
+; Max Page        = 4
+; Max CopList     = 10
+; Max PTModule    = 5
+; Max Anim        = 10
+; Max NChunky     = 50
 ; Max Chunky      = 20
+; Max Stencil     = 5
+; Max XBSound     = 10
 ; /XTRA
 
 WBStartup
 
-Syntax 2
-optimize 4
+SYNTAX 2
+OPTIMIZE 4
 
-ver$ = "$VER: DrawerGenie 0.2 (29.10.2023) by Rob Cranley"
+ver$ = "$VER: DrawerGenie 0.3 (31.10.2023) by Rob Cranley"
+v$ = "0.3"
 
 #debug = 0
 #maxhelpers = 10
@@ -309,7 +310,7 @@ If arexx_Init{"DRAWERGENIE"} = False
 End If
 
 
-If MakeCommodity("DrawerGenie", "DrawerGenie", "A drawer helper commodity") = False
+If MakeCommodity("DrawerGenie", "DrawerGenie v" + v$, "A drawer helper commodity") = False
   CNIF #debug
     NPrint "Unable to create commodity"
   CEND

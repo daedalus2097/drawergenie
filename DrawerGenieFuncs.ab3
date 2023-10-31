@@ -30,8 +30,8 @@
 ; 
 ; Editor
 ; -------------------------------------------------------
-; CursorLine      = 921
-; CursorColumn    = 1
+; CursorLine      = 663
+; CursorColumn    = 18
 ; LabelSearch     = ""
 ; LabelRemark     = 0
 ; LabelAll        = 0
@@ -41,39 +41,39 @@
 ; -------------------------------------------------------
 ; Max File        = 5
 ; Max GadgetList  = 5
-; Max Queue       = 10
-; Max Screen      = 5
 ; Max Shape       = 100
-; Max CopList     = 10
-; Max Sprite      = 20
-; Max Stencil     = 5
-; Max Module      = 5
-; Max Window      = 20
-; Max Anim        = 10
-; Max Sound       = 10
 ; Max Bank        = 5
-; Max Buffer      = 10
-; Max Slice       = 10
-; Max Page        = 4
-; Max Tape        = 5
-; Max IntuiFont   = 5
-; Max MedModule   = 8
-; Max Palette     = 4
 ; Max MenuList    = 5
-; Max BlitzFont   = 4
 ; Max GTList      = 20
+; Max Palette     = 4
 ; Max BitMap      = 10
+; Max Screen      = 5
+; Max IntuiFont   = 5
+; Max BlitzFont   = 4
+; Max Window      = 20
 ; Max IconInfo    = 1
-; Max NChunky     = 50
 ; Max MUIObject   = 50
-; Max PTModule    = 5
 ; Max AsyncReq    = 4
 ; Max Req-Lib     = 5
 ; Max GTMenuList  = 5
 ; Max Console     = 5
 ; Max TCPSock     = 5
-; Max XBSound     = 10
+; Max Tape        = 5
+; Max Sound       = 10
+; Max MedModule   = 8
+; Max Buffer      = 10
+; Max Queue       = 10
+; Max Sprite      = 20
+; Max Module      = 5
+; Max Slice       = 10
+; Max Page        = 4
+; Max CopList     = 10
+; Max PTModule    = 5
+; Max Anim        = 10
+; Max NChunky     = 50
 ; Max Chunky      = 20
+; Max Stencil     = 5
+; Max XBSound     = 10
 ; /XTRA
 
 ; *** Functions for DrawerGenie.ab3
@@ -189,7 +189,7 @@ End Statement
 ; Include a helper ID of 0 to pick next available ID, include an actual ID and it will only succeed if that ID is available
 ; Include a helper ID to copy the history over from that helper
 Function.w addhelper{copyhistory.w} ;helper.w}
-  SHARED helpers(), prefs, *ibase, borderwidths, gadgets(), sourcewin, destwin
+  SHARED helpers(), prefs, *ibase, borderwidths, gadgets(), sourcewin, destwin, lastgadget
   result.w = False
   DEFTYPE .wbwindow rexxwindow, intuiwindow
 
@@ -277,7 +277,7 @@ Function.w addhelper{copyhistory.w} ;helper.w}
           If \helperwinaddr
             GTGZZPosition On
             xpos.w = 1
-            For i.w = 0 To #maxgadgets - 1
+            For i.w = 0 To lastgadget ;#maxgadgets - 1
               If gadgets(i) > 0
                 CNIF #debug
                   NPrint "Creating gadget ", gadgets(i)
@@ -719,7 +719,7 @@ End Statement
 
 
 Statement prefsload{}
-  SHARED prefs, gadgets(), lastgadget
+  SHARED prefs, gadgets(), lastgadget, gadgetxpos()
 
   If ReadFile(0, "ENV:drawergenie.prefs")
     FileInput 0
@@ -732,8 +732,15 @@ Statement prefsload{}
       prefs\toolbarhotkey = Edit$(32)
       prefs\openhotkey = Edit$(32)
       lastgadget = Edit(10)
+      xpos.w = 0
       For i.w = 0 To lastgadget
         gadgets(i) = Edit(10)
+        If gadgets(i) = 999
+          xpos + 10
+        Else
+          gadgetxpos(gadgets(i)) = xpos
+          xpos + 16
+        End If
       Next i
     PopInput
     CloseFile 0
