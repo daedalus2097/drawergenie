@@ -2,7 +2,7 @@ Short:        Toolbar for Workbench Drawers
 Author:       Rob Cranley
 Uploader:     robcranley@gmail.com (Rob Cranley)
 Type:         util/wb
-Version:      0.2
+Version:      0.4
 Architecture: m68k-amigaos >= 3.5
 Requires:     
 
@@ -77,7 +77,16 @@ Running its icon a second time will open the Preferences window, as will issuing
 a Show command from Exchange.
 
 
-History
+Changes
 ~~~~~~~
-0.2 (29.10.2023)
-- First public beta release
+0.4 (06.11.2023)
+- Added Sort by Type option
+- Added support for popup items to be used in main toolbar
+- Changed OS version check from exec to workbench to suit some hybrid 3.1 / 3.9
+  installations
+- Fixed occasional misalignment of gadgets in drop-downs
+- Adjusted layout in preference and toolbar editing windows
+- Added *experimental* option to adjust windows to accommodate toolbar
+- Added HELP: to documentation search path
+- Added workaround for icon-only files preventing file operations (fallback
+  method using ARexx added)

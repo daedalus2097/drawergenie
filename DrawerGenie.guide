@@ -3,7 +3,7 @@
 @NODE "main" "DrawerGenie Guide"
 
    @{b}
-   DrawerGenie v0.1
+   DrawerGenie v0.4
    @{ub}
    © 2023 Rob Cranley
 
@@ -26,6 +26,8 @@
    @{" Configuration      " Link "configuration"} Configuring DrawerGenie
 
    @{" Bugs & Limitations " LINK "bugs"}  Known problems with DrawerGenie
+   
+   @{" Future             " LINK "future"}  Plans for future versions of DrawerGenie
 
    @{" About Me           " LINK "aboutme"}  About the author
 
@@ -170,8 +172,11 @@ DrawerGenie can be configured using icon Tooltypes and its preferences window, w
 
 The settings available in the preferences window are as follows:
 
-@{b}Close previous when opening @{ub}
+@{b}Close previous drawer@{ub}
 When this setting is active, the currently active drawer and toolbar will be closed automatically when opening the parent or previous drawer. If it's disabled, the active drawer will remain open. Holding down Shift while executing the relevant functions will reverse the behaviour of this option.
+
+@{b}Adjust drawer for toolbar@{ub}
+Enabling this option tells DrawerGenie to scroll a window down when a toolbar is opened or when certain operations are performed (e.g. sorting icons). This means that files shouldn't be obscured by the toolbar. Please note that this is an experimental feature, and the behaviour might not be consistent as it relies on DrawerGenie keeping track of each window's state. If a window is modified separately, e.g. by using Workbench controls directly, DrawerGenie won't know and will act based on how it last remembered the window.
 
 @{b}Default viewer path@{ub}
 This setting is the path to the viewer that should be used when the View icon is clicked. By default it's set to MultiView.
@@ -209,14 +214,34 @@ This contains the path to the drawer where DrawerGenie was installed, and is nee
 
 There are some limitations to DrawerGenie that may or may not get fixed in the future, such as:
 
-- Icon files without associated main files prevent most file operations from starting (this seems to be a limitation within workbench.library)
+- Icon files without associated main files prevent most file operations from starting (this seems to be a limitation within workbench.library). A workaround is provided which uses ARexx instead of workbench.library directly, but this is slower, and might be very slow when dealing with large directories.
 
 - When moving a file to another directory on the same volume, if the file already exists at the destination and is to be overwritten, DrawerCopy will fall back to using copy & delete instead of rename, which is a slower method. This is done because renaming after a delete caused the file in question to disappear completely. This *may* be a limitation of AmigaDOS itself, the filesystem, or something else, but for now the slower, safe option is used. Renaming is carried out for any files that do not exist at the destination.
 
 - When extracting an Lha archive, if files with the same name are present, they will be overwritten without warning.
 
+- The "Adjust drawer for toolbar" option makes assumptions on the current state of a Workbench window, and behaviour may be unexpected if, for example, the icons are sorted using the Workbench menus instead.
+
+- The toolbar is limited to 16x16 images and isn't palette-mapped.
 
 If you find any other bugs or have any suggestions, please @{"let me know" LINK "aboutme"}!
+
+@ENDNODE
+@NODE "future" "DrawerGenie - Future Plans"
+
+@{b}Future Plans@{ub}
+
+Things I hope to add to DrawerGenie in the future (time and ability permitting) include:
+
+- User selectable toolbar icons (including support for larger icon sizes than the current 16x16)
+
+- AISS support
+
+- Automatic opening of toolbars when Workbench drawers are opened
+
+- Support for other archive types via XAD or similar
+
+If you have any suggestions, please @{"let me know" LINK "aboutme"}!
 
 @ENDNODE
 @NODE "aboutme" "DrawerGenie - About Me"

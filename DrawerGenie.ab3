@@ -14,7 +14,7 @@
 ; MakeSmallest    = 1
 ; FuncOptimize    = 1
 ; Version         = 0.0.0
-; NumberOfBuilds  = 859
+; NumberOfBuilds  = 931
 ; 
 ; Debugger
 ; -------------------------------------------------------
@@ -30,8 +30,8 @@
 ; 
 ; Editor
 ; -------------------------------------------------------
-; CursorLine      = 236
-; CursorColumn    = 53
+; CursorLine      = 15
+; CursorColumn    = 44
 ; LabelSearch     = ""
 ; LabelRemark     = 0
 ; LabelAll        = 0
@@ -75,19 +75,35 @@
 ; Max Stencil     = 5
 ; Max XBSound     = 10
 ; /XTRA
+; *** DrawerGenie
+; *** To do
+; - Add support for drop-down items in main toolbar *Done
+; - Add Sort by Type gadget                         *Done
+; - Fall back to ARexx when no icons found          *Done
+; - Misalignment of drop-down gadgets               *Done
+; - Add Help: to documentation search path          *Done
+; - Option to adjust icon position (Scroll? Move all icons?) *Done (experimental)
+
+; - wizard.library dependency still present? 16/32-bit screenmodes only?
+; - Add automatic opening of toolbar when Workbench windows open (patch Workbench / Intuition)
+; - Look into adding extra window gadget (patch Intuition?)
+; - Toolbar colour remapping
+; - Support for AISS (requires arbitrary gadget sizing instead of fixed 16x16)
+; - Support for XAD / other archive formats
 
 WBStartup
 
 SYNTAX 2
 OPTIMIZE 4
 
-ver$ = "$VER: DrawerGenie 0.3 (31.10.2023) by Rob Cranley"
-v$ = "0.3"
+ver$ = "$VER: DrawerGenie 0.4 (06.11.2023) by Rob Cranley"
+v$ = "0.4"
 
-#debug = 0
+#debug = 1
 #maxhelpers = 10
 #checkframes = 5
 #maxgadgets = 40
+#allgadgets = 34
 #maxhistory = 20
 #copybuffer = 65536
 
@@ -109,6 +125,7 @@ v$ = "0.3"
 #p_toolbarhotkey = 5
 #p_openhotkey = 6
 #p_edittoolbar = 7
+#p_adjustdrawer = 8
 
 #p_save = 20
 #p_use = 21
@@ -152,6 +169,7 @@ NEWTYPE .wbwindow
   winw.w
   winh.w
   title.s
+  scrolleddown.b
 End NEWTYPE
 
 NEWTYPE .helperwindow
@@ -181,8 +199,11 @@ NEWTYPE .helperwindow
   progressopen.b
   winlock.l
   progresswidth.w
+
   cancelflag.b
+
   viewmode.b
+  sortby.b
 End NEWTYPE
 
 NEWTYPE .bordersizes
@@ -224,7 +245,8 @@ End NEWTYPE
 
 DEFTYPE .b quit, activateflag, enabled, prefsopen, swapaction, toolbareditopen
 DEFTYPE .w wbwincount, checkhelper, framecount, iconcount, sourcewin, destwin, fontysize, screenw, screenh, copiedcount, copyflags, wmx, wmy, prevwmx, prevwmy, mousepause, tbselected, allselected
-DEFTYPE.l iblock, x, ev, ew, ec, eq, ce, hk, gh
+DEFTYPE .w lastgadget, i, xpos
+DEFTYPE .l iblock, x, ev, ew, ec, eq, ce, hk, gh
 
 DEFTYPE .Screen *wbscreen
 DEFTYPE .IntuitionBase *ibase
@@ -240,29 +262,12 @@ Dim List iconlist.icon(0)
 Dim gadgets.w(#maxgadgets) ; Contains the layout of the gadgets in the toolbar
 Dim gadgetxpos.w(#maxgadgets) ; X positions of each gadget in the toolbar
 
-lastgadget.w = 30 ; Position of the last gadget in the toolbar
-
-; Load in a default layout including all gadgets
-xpos.w = 0
-For i.w = 0 To lastgadget
-  Read gadgets(i)
-  If gadgets(i) = 999
-    xpos + 10
-  Else
-    gadgetxpos(gadgets(i)) = xpos
-    xpos + 16
-  End If
-Next i
-
-Data.w 1, 2, 999, 3, 4, 5, 999, 6, 7, 8, 9, 22, 24, 25, 18, 999, 13, 14, 15, 16, 999, 17, 19, 20, 999, 28, 29, 30, 31, 32, 33
-
-
-Dim allgadgets.gad(33) ; Contains all possible gadgets, with 0 being the spacer (has ID 999 in the layout array)
-Dim List availablegadgets.listitem(33) ; For the toolbar editor listview
+Dim allgadgets.gad(#allgadgets) ; Contains all possible gadgets, with 0 being the spacer (has ID 999 in the layout array)
+Dim List availablegadgets.listitem(#allgadgets) ; For the toolbar editor listview
 Dim List selectedgadgets.listitem(#maxgadgets) ; Selected items in the toolbar editor
 
 Restore gadgetnames
-For i = 0 To 33
+For i = 0 To #allgadgets
   Read x$
   allgadgets(i)\name = x$
   If AddItem(availablegadgets())
@@ -272,23 +277,15 @@ Next i
 
 .gadgetnames
 Data$ "--Spacer--", "Back", "Parent", "Cut", "Copy", "Paste", "Refresh", "New Drawer", "Icon Information", "Delete", "Text View", "Icon View", "Sort by Name"
-Data$ "Set as Source", "Set as Destination", "Copy to", "Move to", "View File", "Rename", "Open", "Select All", "Sort by Date", "View Type", "Sort by Size", "Sort Icons", "File Visibility"
-Data$ "Only Icons", "All Files", "New Shell Window", "Unpack Lha Archive", "List Lha Archive Contents", "Archive using Lha", "Find Files", "Help"
+Data$ "Set as Source", "Set as Destination", "Copy to", "Move to", "View File", "Rename", "Open", "Select All", "Sort by Date", "View Type Drop-Down", "Sort by Size", "Sort Icons Drop-Down"
+Data$ "File Visibility Drop-Down", "Only Icons", "All Files", "New Shell Window", "Unpack Lha Archive", "List Lha Archive Contents", "Archive using Lha", "Find Files", "Help", "Sort by Type"
 
-
-prefs\viewer = "SYS:Utilities/Multiview"
-prefs\closeprevious = 1
-prefs\spawnhelper = 1
-prefs\scrolldown = 0
-prefs\findnewwindows = 1
-prefs\toolbarhotkey = "F1"
-prefs\openhotkey = "Shift Return"
 
 XINCLUDE "drawergeniefuncs.ab3"
 
 
-
-If ExecVersion < 44
+If dos_GetLibVersion{"workbench.library"} < 44
+;If ExecVersion < 44
   Request "DrawerGenie", "Error - DrawerGenie requires OS 3.5 or newer", "Quit"
   End
 End If
@@ -314,7 +311,7 @@ If MakeCommodity("DrawerGenie", "DrawerGenie v" + v$, "A drawer helper commodity
   CNIF #debug
     NPrint "Unable to create commodity"
   CEND
-  ; This should only happen when DrawerGenie is already running, so no error requester required
+  ; This should happen when DrawerGenie is already running, so no error requester required
   ;Request "DrawerGenie", "Error - Unable to create commodity", "Quit"
   End
 End If
@@ -340,10 +337,10 @@ If dos_Exist{toolbarfn$} = False
   End If
 End If
 
-BitMap 0, 528, 32, 2
+BitMap 0, 544, 32, 2
 LoadBitMap 0, toolbarfn$
 For i.w = 0 To 1
-  For j.w = 0 To 32
+  For j.w = 0 To 33
     GetaShape i * #selectedoffset + j + 1, j * 16, i * 16, 16, 16
   Next j
 Next i
@@ -477,7 +474,7 @@ Repeat
             NPrint "Open Hotkey"
           CEND
           ;arexx_SendMessage{"WORKBENCH", "MENU INVOKE ICONS.OPEN"}
-          iconcount = getselectedicons{}
+          iconcount = getselectedicons{ew}
           If iconcount
             ResetList iconlist()
             While NextItem(iconlist())
@@ -632,18 +629,35 @@ Repeat
                   If helpflag
                     Gosub popuphelp
                   Else
+                    adjustflag.b = False
                     Select subgad
                       Case 1
                         arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.VIEWBY.NAME"}
-                        helpers(ew)\viewmode = #name
+                        If helpers(ew)\viewmode <> #v_name
+                          ;NPrint "Window should be adjusted"
+                          adjustflag = True
+                          helpers(ew)\sortby = -1 ; Makes current sort method invalid
+                        End If
+                        helpers(ew)\viewmode = #v_name
                       Case 2
                         arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.VIEWBY.ICON"}
-                        helpers(ew)\viewmode = #icon
+                        If helpers(ew)\viewmode <> #v_icon
+                          ;NPrint "Window should be adjusted"
+                          adjustflag = True
+                          helpers(ew)\sortby = -1 ; Makes current sort method invalid
+                        End If
+                        helpers(ew)\viewmode = #v_icon
 
                     End Select
+                    If prefs\scrolldown
+                      If adjustflag
+                        adjustwindow{ew}
+                      End If
+                    End If
                   End If
+
                 Case #sort
-                  subgad.w = opendropdown{ew, gh, 3}
+                  subgad.w = opendropdown{ew, gh, 4}
                   CNIF #debug
                     NPrint "Subgadget selected: ", subgad
                   CEND
@@ -651,23 +665,65 @@ Repeat
                   If helpflag
                     Gosub popuphelp
                   Else
-
-                    If helpers(ew)\viewmode = #icon
+                    adjustflag.b = False
+                    If helpers(ew)\viewmode = #v_icon
                       menucmd$ = "CLEANUPBY"
                     Else
-                      If helpers(ew)\viewmode = #name
+                      If helpers(ew)\viewmode = #v_name
                         menucmd$ = "VIEWBY"
                       End If
                     End If
                     Select subgad
                       Case 1
                         arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW." + menucmd$ + ".NAME"}
+                        If helpers(ew)\viewmode = #v_name
+                          If helpers(ew)\sortby <> #s_name
+                            adjustflag = True
+                          End If
+                        Else
+                          adjustflag = True
+                        End If
+                        helpers(ew)\sortby = #s_name
+
                       Case 2
                         arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW." + menucmd$ + ".DATE"}
+                        If helpers(ew)\viewmode = #v_name
+                          If helpers(ew)\sortby <> #s_date
+                            adjustflag = True
+                          End If
+                        Else
+                          adjustflag = True
+                        End If
+                        helpers(ew)\sortby = #s_date
+
                       Case 3
                         arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW." + menucmd$ + ".SIZE"}
+                        If helpers(ew)\viewmode = #v_name
+                          If helpers(ew)\sortby <> #s_size
+                            adjustflag = True
+                          End If
+                        Else
+                          adjustflag = True
+                        End If
+                        helpers(ew)\sortby = #s_size
+
+                      Case 4
+                        arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW." + menucmd$ + ".TYPE"}
+                        If helpers(ew)\viewmode = #v_name
+                          If helpers(ew)\sortby <> #s_type
+                            adjustflag = True
+                          End If
+                        Else
+                          adjustflag = True
+                        End If
+                        helpers(ew)\sortby = #s_type
 
                     End Select
+                    If prefs\scrolldown
+                      If adjustflag
+                        adjustwindow{ew}
+                      End If
+                    End If
                   End If
 
                 Case #viewfiles
@@ -716,6 +772,7 @@ Repeat
                 Gosub popuphelp
 
               Else
+                adjustflag.b = False
                 Select gh
                   Case #back
                     name$ = historyback{ew}
@@ -770,13 +827,13 @@ Repeat
                     End If
 
                   Case #cut
-                    iconcount = getselectedicons{}
+                    iconcount = getselectedicons{ew}
                     If iconcount
                       cut{ew}
                     End If
 
                   Case #copy
-                    iconcount = getselectedicons{}
+                    iconcount = getselectedicons{ew}
                     If iconcount
                       copy{ew}
                     End If
@@ -792,7 +849,7 @@ Repeat
                     activateflag = False
 
                   Case #info
-                    If getselectedicons{}
+                    If getselectedicons{ew}
                       arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE ICONS.INFORMATION"}
                       activateflag = False
 
@@ -819,12 +876,97 @@ Repeat
 
                   Case #textview
                     arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.VIEWBY.NAME"}
+                    If prefs\scrolldown
+                      If helpers(ew)\viewmode <> #v_name
+                        adjustwindow{ew}
+                      End If
+                    End If
+                    helpers(ew)\viewmode = #v_name
+                    helpers(ew)\sortby = -1 ; Makes current sort method invalid
 
                   Case #iconview
                     arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.VIEWBY.ICON"}
+                    If prefs\scrolldown
+                      If helpers(ew)\viewmode <> #v_icon
+                        adjustwindow{ew}
+                      End If
+                    End If
+                    helpers(ew)\viewmode = #v_icon
+                    helpers(ew)\sortby = -1 ; Makes current sort method invalid
 
-                  Case #sort
-                    arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.CLEANUPBY.NAME"}
+                  Case #sortalpha
+                    If helpers(ew)\viewmode = #v_name
+                      arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.VIEWBY.NAME"}
+                      If helpers(ew)\sortby <> #s_name
+                        adjustflag = True
+                      End If
+                    Else
+                      arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.CLEANUPBY.NAME"}
+                      adjustflag = True
+                    End If
+                    If prefs\scrolldown
+                      If adjustflag
+                        adjustwindow{ew}
+                      End If
+                    End If
+                    helpers(ew)\sortby = #s_name
+
+                  Case #sortbydate
+                    If helpers(ew)\viewmode = #v_name
+                      arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.VIEWBY.DATE"}
+                      If helpers(ew)\sortby <> #s_date
+                        adjustflag = True
+                      End If
+                    Else
+                      arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.CLEANUPBY.DATE"}
+                      adjustflag = True
+                    End If
+                    If prefs\scrolldown
+                      If adjustflag
+                        adjustwindow{ew}
+                      End If
+                    End If
+                    helpers(ew)\sortby = #s_date
+
+                  Case #sortbysize
+                    If helpers(ew)\viewmode = #v_name
+                      arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.VIEWBY.SIZE"}
+                      If helpers(ew)\sortby <> #s_size
+                        adjustflag = True
+                      End If
+                    Else
+                      arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.CLEANUPBY.SIZE"}
+                      adjustflag = True
+                    End If
+                    If prefs\scrolldown
+                      If adjustflag
+                        adjustwindow{ew}
+                      End If
+                    End If
+                    helpers(ew)\sortby = #s_size
+
+                  Case #sortbytype
+                    If helpers(ew)\viewmode = #v_name
+                      arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.VIEWBY.TYPE"}
+                      If helpers(ew)\sortby <> #s_type
+                        adjustflag = True
+                      End If
+                    Else
+                      arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.CLEANUPBY.TYPE"}
+                      adjustflag = True
+                    End If
+                    If prefs\scrolldown
+                      If adjustflag
+                        adjustwindow{ew}
+                      End If
+                    End If
+                    helpers(ew)\sortby = #s_type
+
+                  Case #onlyicons
+                    arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.SHOW.ONLYICONS"}
+
+                  Case #allfiles
+                    arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(ew)\path + "\\22 INVOKE WINDOW.SHOW.ALLFILES"}
 
                   Case #source
                     If GTStatus(ew, #source)
@@ -854,7 +996,7 @@ Repeat
                     End If
 
                   Case #copyto
-                    iconcount = getselectedicons{}
+                    iconcount = getselectedicons{ew}
                     CNIF #debug
                       NPrint iconcount, " icons selected for copying to..."
                     CEND
@@ -896,7 +1038,7 @@ Repeat
                     End If
 
                   Case #moveto
-                    iconcount = getselectedicons{}
+                    iconcount = getselectedicons{ew}
                     CNIF #debug
                       NPrint iconcount, " icons selected for moving to..."
                     CEND
@@ -981,7 +1123,7 @@ Repeat
                     End If
 
                   Case #view
-                    iconcount = getselectedicons{}
+                    iconcount = getselectedicons{ew}
                     If iconcount
                       ResetList iconlist()
                       While NextItem(iconlist())
@@ -1006,7 +1148,7 @@ Repeat
                     End If
 
                   Case #open
-                    iconcount = getselectedicons{}
+                    iconcount = getselectedicons{ew}
                     If iconcount
                       ResetList iconlist()
                       While NextItem(iconlist())
@@ -1121,7 +1263,16 @@ Repeat
                     Execute_ "Run SYS:System/Find", 0, 0
 
                   Case #help
-                    cmd$ = "Run \\22" + prefs\viewer + "\\22 \\22" + dos_AddPart{prefs\homedir, "DrawerGenie.guide"} + "\\22"
+                    path$ = prefs\homedir
+                    If dos_Exist{"HELP:DrawerGenie.guide"}
+                      path$ = "HELP:"
+                    End If
+
+                    If dos_Exist{"DrawerGenie.guide"}
+                      path$ = ""
+                    End If
+
+                    cmd$ = "Run \\22" + prefs\viewer + "\\22 \\22" + dos_AddPart{path$, "DrawerGenie.guide"} + "\\22"
                     Execute_ cmd$, 0, 0
                 End Select
 
@@ -1189,7 +1340,7 @@ End
 
 
 .fillpathsbuffer
-  iconcount = getselectedicons{}
+  iconcount = getselectedicons{ew}
   ResetList iconlist()
 
   pathsbuffer.l = AllocMem_(256 * (iconcount + 1) + 4, 0)
@@ -1228,6 +1379,8 @@ Return
             help$ = allgadgets(#sortbydate)\name
           Case 3
             help$ = allgadgets(#sortbysize)\name
+          Case 4
+            help$ = allgadgets(#sortbytype)\name
         End Select
 
       Case #viewtype
@@ -1269,41 +1422,48 @@ Return
     End If
 
     flags.l = #WFLG_BORDERLESS
-    Window #w_popuphelp, winx, winy, helpwidth, helpheight, flags, "", 1, 2
-    Wline 0, helpheight - 1, 0, 0, helpwidth - 1, 0, 2
-    Wline helpwidth - 1, 0, helpwidth - 1, helpheight - 1, 0, helpheight - 1, 1
-    WLocate 5, 3
-    NPrint help$
-    DefaultOutput
-    closehelp.b = False
-    FlushEvents
-    Repeat
-      Delay_ 1
-      ev.l = Event
-      smx2.w = SMouseX
-      smy2.w = SMouseY
-      If ev
-        closehelp = True
-        CNIF #debug
-          NPrint "Close event: ", Hex$(ev)
-        CEND
-      End If
+    If Window(#w_popuphelp, winx, winy, helpwidth, helpheight, flags, "", 1, 2)
 
-      If Abs(smx2 - smx) > 5
-        closehelp = True
-        CNIF #debug
-          NPrint "X move"
-        CEND
-      Else
-        If Abs(smy2 - smy) > 5
+      GTGZZPosition On
+      Wline 0, helpheight - 1, 0, 0, helpwidth - 1, 0, 2
+      Wline helpwidth - 1, 0, helpwidth - 1, helpheight - 1, 0, helpheight - 1, 1
+      WLocate 5, 3
+      NPrint help$
+      DefaultOutput
+      closehelp.b = False
+      FlushEvents
+      Repeat
+        Delay_ 1
+        ev.l = Event
+        smx2.w = SMouseX
+        smy2.w = SMouseY
+        If ev
           closehelp = True
           CNIF #debug
-            NPrint "Y move"
+            NPrint "Close event: ", Hex$(ev)
           CEND
         End If
-      End If
-    Until closehelp
-    CloseWindow #w_popuphelp
+
+        If Abs(smx2 - smx) > 5
+          closehelp = True
+          CNIF #debug
+            NPrint "X move"
+          CEND
+        Else
+          If Abs(smy2 - smy) > 5
+            closehelp = True
+            CNIF #debug
+              NPrint "Y move"
+            CEND
+          End If
+        End If
+      Until closehelp
+      CloseWindow #w_popuphelp
+    Else
+      CNIF #debug
+        NPrint "Error opening popup window"
+      CEND
+    End If
   End If
 
 Return

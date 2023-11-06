@@ -14,7 +14,7 @@
 ; MakeSmallest    = 1
 ; FuncOptimize    = 1
 ; Version         = 0.0.0
-; NumberOfBuilds  = 414
+; NumberOfBuilds  = 419
 ; 
 ; Debugger
 ; -------------------------------------------------------
@@ -30,8 +30,8 @@
 ; 
 ; Editor
 ; -------------------------------------------------------
-; CursorLine      = 663
-; CursorColumn    = 18
+; CursorLine      = 915
+; CursorColumn    = 21
 ; LabelSearch     = ""
 ; LabelRemark     = 0
 ; LabelAll        = 0
@@ -41,39 +41,39 @@
 ; -------------------------------------------------------
 ; Max File        = 5
 ; Max GadgetList  = 5
-; Max Shape       = 100
-; Max Bank        = 5
-; Max MenuList    = 5
-; Max GTList      = 20
-; Max Palette     = 4
-; Max BitMap      = 10
+; Max Queue       = 10
 ; Max Screen      = 5
-; Max IntuiFont   = 5
-; Max BlitzFont   = 4
+; Max Shape       = 100
+; Max CopList     = 10
+; Max Sprite      = 20
+; Max Stencil     = 5
+; Max Module      = 5
 ; Max Window      = 20
+; Max Anim        = 10
+; Max Sound       = 10
+; Max Bank        = 5
+; Max Buffer      = 10
+; Max Slice       = 10
+; Max Page        = 4
+; Max Tape        = 5
+; Max IntuiFont   = 5
+; Max MedModule   = 8
+; Max Palette     = 4
+; Max MenuList    = 5
+; Max BlitzFont   = 4
+; Max GTList      = 20
+; Max BitMap      = 10
 ; Max IconInfo    = 1
+; Max NChunky     = 50
 ; Max MUIObject   = 50
+; Max PTModule    = 5
 ; Max AsyncReq    = 4
 ; Max Req-Lib     = 5
 ; Max GTMenuList  = 5
 ; Max Console     = 5
 ; Max TCPSock     = 5
-; Max Tape        = 5
-; Max Sound       = 10
-; Max MedModule   = 8
-; Max Buffer      = 10
-; Max Queue       = 10
-; Max Sprite      = 20
-; Max Module      = 5
-; Max Slice       = 10
-; Max Page        = 4
-; Max CopList     = 10
-; Max PTModule    = 5
-; Max Anim        = 10
-; Max NChunky     = 50
-; Max Chunky      = 20
-; Max Stencil     = 5
 ; Max XBSound     = 10
+; Max Chunky      = 20
 ; /XTRA
 
 ; *** Functions for DrawerGenie.ab3
@@ -167,8 +167,33 @@ Statement setdest{helperid.w}
 End Statement
 
 
-Statement removehelper{helperid.w}
+Function.b windowadjusted{}
+  result.b = 0
+
+  Function Return result
+End Function
+
+
+Statement adjustwindow{helperid.w}
   SHARED helpers()
+
+  ; This only moves up either by a pixel, by a page, or by a proportion (1/8th) of the Window size. No option For 18 pixels...
+  arexx_SendMessage{"WORKBENCH", "VIEW \\22" + helpers(helperid)\path + "\\22 UP"}
+
+End Statement
+
+
+Statement unadjustwindow{helperid.w}
+  SHARED helpers()
+
+  ; This only moves up either by a pixel, by a page, or by a proportion (1/8th) of the Window size. No option For 18 pixels...
+  arexx_SendMessage{"WORKBENCH", "VIEW \\22" + helpers(helperid)\path + "\\22 DOWN"}
+
+End Statement
+
+
+Statement removehelper{helperid.w}
+  SHARED helpers(), prefs
 
   ; Check if any outstanding tasks for this helper?
   If helpers(helperid)\inuse
@@ -176,6 +201,9 @@ Statement removehelper{helperid.w}
     CloseWindow helperid
     Free GTList helperid
     helpers(helperid)\inuse = False
+    If prefs\scrolldown
+      unadjustwindow{helperid}
+    End If
   Else
     CNIF #debug
       NPrint "Warning: Tried to close helper that wasn't in use"
@@ -184,12 +212,10 @@ Statement removehelper{helperid.w}
 End Statement
 
 
-
-
 ; Include a helper ID of 0 to pick next available ID, include an actual ID and it will only succeed if that ID is available
 ; Include a helper ID to copy the history over from that helper
 Function.w addhelper{copyhistory.w} ;helper.w}
-  SHARED helpers(), prefs, *ibase, borderwidths, gadgets(), sourcewin, destwin, lastgadget
+  SHARED helpers(), prefs, *ibase, borderwidths, gadgets(), sourcewin, destwin, lastgadget, wbwindows()
   result.w = False
   DEFTYPE .wbwindow rexxwindow, intuiwindow
 
@@ -301,8 +327,8 @@ Function.w addhelper{copyhistory.w} ;helper.w}
             GTBevelBox newhelperid, 0, 0, \helperw, \helperh, 0
 
             If prefs\scrolldown
-              ; This only moves up either by a pixel, by a page, or by a proportion of the window size. No option for 18 pixels...
-              arexx_SendMessage{"WORKBENCH", "VIEW \\22" + helpers(newhelperid)\path + "\\22 UP"}
+              adjustwindow{newhelperid}
+
             End If
             result = newhelperid ;True
 
@@ -389,7 +415,53 @@ Function.b helperstatus{helperid.w}
 End Function
 
 
-Function.w getselectedicons{}
+Function.w getselectediconsarexx{ew.w}
+  SHARED helpers(), iconlist()
+
+  result.w = 0
+  path$ = helpers(ew)\path
+
+  If Right$(helpers(ew)\path, 1) <> ":" AND Right$(helpers(ew)\path, 1) <> "/"
+    path$ + "/"
+  End If
+
+  cmd$ = "GETATTR WINDOW.ICONS.SELECTED.COUNT NAME \\22" + path$ + "\\22"
+  arexx_SendMessage{"WORKBENCH", cmd$}
+  res$ = arexx_GetResultString{}
+  iconcount.w = Vallong(res$)
+  CNIF #debug
+    NPrint "Sent command: ", cmd$
+    NPrint "ARexx result: ", res$
+    NPrint "ARexx icons counted: ", iconcount
+  CEND
+
+  For i.w = 0 To iconcount - 1
+    cmd$ = "GETATTR WINDOW.ICONS.SELECTED." + Str$(i) + ".NAME NAME \\22" + path$ + "\\22"
+    arexx_SendMessage{"WORKBENCH", cmd$}
+    res$ = arexx_GetResultString{}
+
+    CNIF #debug
+      NPrint "Query ", i, " sent: ", cmd$
+      NPrint "Result: ", res$
+    CEND
+    name$ = dos_AddPart{path$, res$}
+    If AddItem(iconlist())
+      iconlist()\path = name$
+      If dos_IsDir{name$}
+        iconlist()\kind = #WBDRAWER
+      Else
+        iconlist()\kind = 0
+      End If
+
+    End If
+  Next i
+
+  result = iconcount
+  Function Return result
+End Function
+
+
+Function.w getselectedicons{ew.w}
   SHARED helpers(), iconlist(), taglist()
   DEFTYPE .List *seliconslist
   DEFTYPE .Node *node
@@ -401,7 +473,9 @@ Function.w getselectedicons{}
   CEND
   taglist(0)\ti_Tag = #WBCTRLA_GetSelectedIconList, &*seliconslist
   taglist(1)\ti_Tag = #TAG_DONE
+  ;wbres.l = WorkbenchControlA_(0, &taglist(0))
   If WorkbenchControlA_(0, &taglist(0))
+  ;If wbres
     CNIF #debug
       NPrint "Listing selected icons..."
     CEND
@@ -428,6 +502,17 @@ Function.w getselectedicons{}
 
     taglist(0)\ti_Tag = #WBCTRLA_FreeSelectedIconList, *seliconslist
     WorkbenchControlA_ 0, &taglist(0)
+  Else
+    CNIF #debug
+      NPrint "... Error from WBControlA function"
+      MaxLen error$ = 128
+      err.l = IoErr_()
+      succ.l = Fault_ (err, "", &error$, 128)
+      NPrint "Error: ", err, " - ", error$
+      NPrint "Falling back to ARexx method"
+    CEND
+
+    result = getselectediconsarexx{ew}
   End If
 
   Function Return result
@@ -451,14 +536,17 @@ Statement openprefs{}
     ih.w = InnerHeight
     butwidth.w = iw / 3 - 7
     buth.w = fontysize + 6
-    GTCheckBox 0, #p_closeprev, iw - buth - 10, 10, buth, buth, "Close child when opening parent", #PLACETEXT_LEFT|$200
-    GTString 0, #p_viewer, 200, 34, iw - 211 - buth, buth, "Default viewer path", #PLACETEXT_LEFT, 255, prefs\viewer
-    GTButton 0, #p_viewerselect, iw - 10 - buth, 34, buth, buth, "?", #PLACETEXT_IN
-    GTString 0, #p_homedir, 200, 58, iw - 211 - buth, buth, "Home Directory", #PLACETEXT_LEFT, 255, prefs\homedir
-    GTButton 0, #p_homedirselect, iw - 10 - buth, 58, buth, buth, "?", #PLACETEXT_IN
-    GTString 0, #p_toolbarhotkey, 200, 82, 80, buth, "Toolbar Hotkey", #PLACETEXT_LEFT, 25, prefs\toolbarhotkey
-    GTString 0, #p_openhotkey, iw - 90, 82, 80, buth, "Open Hotkey", #PLACETEXT_LEFT, 25, prefs\openhotkey
-    GTButton 0, #p_edittoolbar, 200, 106, iw - 210, buth, "Edit Toolbar...", #PLACETEXT_IN
+    ;GTCheckBox 0, #p_closeprev, iw - buth - 10, 10, buth, buth, "Close previous drawer", #PLACETEXT_LEFT|$200
+    GTCheckBox 0, #p_closeprev, 5, 5, buth, buth, "Close previous drawer", #PLACETEXT_RIGHT|$200
+    GTCheckBox 0, #p_adjustdrawer, iw / 2 + 2, 5, buth, buth, "Adjust drawer for toolbar", #PLACETEXT_RIGHT|$200
+    GTString 0, #p_viewer, 205, 29, iw - 211 - buth, buth, "Default viewer path", #PLACETEXT_LEFT, 255, prefs\viewer
+    GTButton 0, #p_viewerselect, iw - 5 - buth, 29, buth, buth, "?", #PLACETEXT_IN
+    GTString 0, #p_homedir, 205, 53, iw - 211 - buth, buth, "Home Directory", #PLACETEXT_LEFT, 255, prefs\homedir
+    GTButton 0, #p_homedirselect, iw - 5 - buth, 53, buth, buth, "?", #PLACETEXT_IN
+    GTString 0, #p_toolbarhotkey, 205, 77, 80, buth, "Toolbar Hotkey", #PLACETEXT_LEFT, 25, prefs\toolbarhotkey
+    GTString 0, #p_openhotkey, iw - 85, 77, 80, buth, "Open Hotkey", #PLACETEXT_LEFT, 25, prefs\openhotkey
+    GTButton 0, #p_edittoolbar, 205, 106, iw - 210, buth, "Edit Toolbar...", #PLACETEXT_IN
+
 
     GTButton 0, #p_save, 5, ih - buth - 5, butwidth, buth, "Save", #PLACETEXT_IN
     GTButton 0, #p_use, iw / 2 - butwidth / 2, ih - buth - 5, butwidth, buth, "Use", #PLACETEXT_IN
@@ -467,13 +555,22 @@ Statement openprefs{}
     AttachGTList 0, 0
     GTBevelBox 0, 0, 0, iw, ih, 0
     If prefs\closeprevious
-      GTToggle 0, 0, On
+      GTToggle 0, #p_closeprev, On
     End If
+    If prefs\scrolldown
+      GTToggle 0, #p_adjustdrawer, On
+    End If
+
+
     DefaultOutput
 
     GTSetMenu 0
   Else
     Request "DrawerGenie", "Error - Unable to open Preferences window", "Cancel"
+    CNIF #debug
+      NPrint "Error opening prefs window"
+    CEND
+
   End If
 
 End Statement
@@ -718,8 +815,42 @@ Statement historyclear{helper.w}
 End Statement
 
 
+Statement defprefs{}
+  SHARED prefs, gadgets(), lastgadget, gadgetxpos()
+
+  lastgadget.w = 30 ; Position of the last gadget in the toolbar
+
+  ; Load in a default layout including all gadgets
+  xpos.w = 0
+  For i.w = 0 To lastgadget
+    Read gadgets(i)
+    If gadgets(i) = 999
+      xpos + 10
+    Else
+      gadgetxpos(gadgets(i)) = xpos
+      xpos + 16
+    End If
+  Next i
+
+  Data.w 1, 2, 999, 3, 4, 5, 999, 6, 7, 8, 9, 22, 24, 25, 18, 999, 13, 14, 15, 16, 999, 17, 19, 20, 999, 28, 29, 30, 31, 32, 33
+
+  prefs\viewer = "SYS:Utilities/Multiview"
+  prefs\closeprevious = 1
+  prefs\spawnhelper = 1
+  prefs\scrolldown = 1
+  prefs\findnewwindows = 1
+  prefs\toolbarhotkey = "F1"
+  prefs\openhotkey = "Shift Return"
+
+
+End Statement
+
+
 Statement prefsload{}
   SHARED prefs, gadgets(), lastgadget, gadgetxpos()
+
+  ; First set defaults
+  defprefs{}
 
   If ReadFile(0, "ENV:drawergenie.prefs")
     FileInput 0
@@ -791,6 +922,7 @@ Statement getprefs{}
 
   prefs\viewer = GTGetString(0, #p_viewer)
   prefs\closeprevious = GTStatus(0, #p_closeprev)
+  prefs\scrolldown = GTStatus(0, #p_adjustdrawer)
 
   hk$ = GTGetString(0, #p_toolbarhotkey)
   If hk$ <> prefs\toolbarhotkey
@@ -855,68 +987,75 @@ Function.w opendropdown{ew.w, gh.w, count.b}
   popuph.w = 16 * count + 2
 
   flags.l = #WFLG_BORDERLESS
-  Window #w_popup, popupx, popupy, 18, popuph, flags, "", 1, 2
+  If Window(#w_popup, popupx, popupy, 18, popuph, flags, "", 1, 2)
 
-  DefaultOutput
+    GTGZZPosition On
+    DefaultOutput
 
-  Select gh
-    Case #viewtype
-      GTShape #w_popup, 1, 1, 1, 0, #textview, #textview + #selectedoffset
-      GTShape #w_popup, 2, 1, 17, 0, #iconview, #iconview + #selectedoffset
+    Select gh
+      Case #viewtype
+        GTShape #w_popup, 1, 1, 1, 0, #textview, #textview + #selectedoffset
+        GTShape #w_popup, 2, 1, 17, 0, #iconview, #iconview + #selectedoffset
 
-    Case #sort
-      GTShape #w_popup, 1, 1, 1, 0, #sortalpha, #sortalpha + #selectedoffset
-      GTShape #w_popup, 2, 1, 17, 0, #sortbydate, #sortbydate + #selectedoffset
-      GTShape #w_popup, 3, 1, 33, 0, #sortbysize, #sortbysize + #selectedoffset
+      Case #sort
+        GTShape #w_popup, 1, 1, 1, 0, #sortalpha, #sortalpha + #selectedoffset
+        GTShape #w_popup, 2, 1, 17, 0, #sortbydate, #sortbydate + #selectedoffset
+        GTShape #w_popup, 3, 1, 33, 0, #sortbysize, #sortbysize + #selectedoffset
+        GTShape #w_popup, 4, 1, 49, 0, #sortbytype, #sortbytype + #selectedoffset
 
-    Case #viewfiles
-      GTShape #w_popup, 1, 1, 1, 0, #onlyicons, #onlyicons + #selectedoffset
-      GTShape #w_popup, 2, 1, 17, 0, #allfiles, #allfiles + #selectedoffset
+      Case #viewfiles
+        GTShape #w_popup, 1, 1, 1, 0, #onlyicons, #onlyicons + #selectedoffset
+        GTShape #w_popup, 2, 1, 17, 0, #allfiles, #allfiles + #selectedoffset
 
-  End Select
+    End Select
 
-  AttachGTList #w_popup, #w_popup
-  GTBevelBox #w_popup, 0, 0, 18, popuph, 0
+    AttachGTList #w_popup, #w_popup
+    GTBevelBox #w_popup, 0, 0, 18, popuph, 0
 
-  prevgad.w = 0
+    prevgad.w = 0
 
-  While Joyb(0) ; Bad Rob!
-    Delay_ 1
-    ev.l = Event
+    While Joyb(0) ; Bad Rob!
+      Delay_ 1
+      ev.l = Event
 
-    mx.w = SMouseX - popupx
-    my.w = SMouseY - popupy
-    currentgad.w = 0
-    If mx > 1
-      If mx < 17
-        If my > 1
-          If my < 16 * count + 1
-            currentgad.w = my / 16 + 1
-            If currentgad
-              GTToggle #maxhelpers + 1, currentgad, On
+      mx.w = SMouseX - popupx
+      my.w = SMouseY - popupy
+      currentgad.w = 0
+      If mx > 1
+        If mx < 17
+          If my > 1
+            If my < 16 * count + 1
+              currentgad.w = my / 16 + 1
+              If currentgad
+                GTToggle #maxhelpers + 1, currentgad, On
+              End If
+
             End If
-
           End If
         End If
       End If
-    End If
 
 
-    If currentgad <> prevgad
-      If prevgad ; erase previous border
-        GTToggle #maxhelpers + 1, prevgad, Off
+      If currentgad <> prevgad
+        If prevgad ; erase previous border
+          GTToggle #maxhelpers + 1, prevgad, Off
+        End If
+        prevgad = currentgad
       End If
-      prevgad = currentgad
-    End If
 
 
-  End While
+    End While
 
 
-  DetachGTList #w_popup
-  CloseWindow #w_popup
-  Free GTList #w_popup
-  DefaultOutput
+    DetachGTList #w_popup
+    CloseWindow #w_popup
+    Free GTList #w_popup
+
+  Else
+    CNIF #debug
+      NPrint "Error opening popup window"
+    CEND
+  End If
   Function Return currentgad
 End Function
 
@@ -949,58 +1088,65 @@ Statement openedittoolbar{}
   sw.w = ScreenWidth
   sh.w = ScreenHeight
 
-  winw.w = 400
+  winw.w = 500
   winh.w = 200
   winx.w = sw / 2 - winw / 2
   winy.w = sh / 2 - winh / 2
 
   flags.l = #WFLG_ACTIVATE|#WFLG_CLOSEGADGET|#WFLG_DEPTHGADGET|#WFLG_DRAGBAR
-  Window #w_toolbaredit, winx, winy, winw, winh, flags, "DrawerGenie - Edit Toolbar", 1, 2
-  toolbareditopen = True
-  DefaultOutput
+  If Window(#w_toolbaredit, winx, winy, winw, winh, flags, "DrawerGenie - Edit Toolbar", 1, 2)
+    GTGZZPosition Off
+    toolbareditopen = True
+    DefaultOutput
 
-  iw.w = InnerWidth
-  ih.w = InnerHeight
+    iw.w = InnerWidth
+    ih.w = InnerHeight
 
-  butw.w = iw / 2 - 7
-  buth.w = fontysize + 6
+    butw.w = iw / 2 - 7
+    buth.w = fontysize + 6
 
-  butw2.w = iw - 300 - 20
-  ClearList selectedgadgets()
-  For i.w = 0 To lastgadget
-    If gadgets(i)
-      If AddItem(selectedgadgets())
-        If gadgets(i) = 999
-          selectedgadgets()\id = 999
-          selectedgadgets()\name = allgadgets(0)\name
-        Else
-          selectedgadgets()\id = gadgets(i)
-          selectedgadgets()\name = allgadgets(gadgets(i))\name
+    butw2.w = iw - 400 - 20
+    ClearList selectedgadgets()
+    For i.w = 0 To lastgadget
+      If gadgets(i)
+        If AddItem(selectedgadgets())
+          If gadgets(i) = 999
+            selectedgadgets()\id = 999
+            selectedgadgets()\name = allgadgets(0)\name
+          Else
+            selectedgadgets()\id = gadgets(i)
+            selectedgadgets()\name = allgadgets(gadgets(i))\name
+          End If
         End If
       End If
-    End If
-  Next i
+    Next i
 
-  GTNewLookProp On
+    GTNewLookProp On
 
-  GTTags #GTLV_ShowSelected, 0
-  GTListView #w_toolbaredit, #e_allgadgets, 5, 25, 150, ih - 60, "Available Gadgets", #PLACETEXT_ABOVE, availablegadgets(), 0
+    GTTags #GTLV_ShowSelected, 0
+    GTListView #w_toolbaredit, #e_allgadgets, 5, 25, 200, ih - 60, "Available Gadgets", #PLACETEXT_ABOVE, availablegadgets(), 0
 
-  GTTags #GTLV_ShowSelected, 0
-  GTListView #w_toolbaredit, #e_toolbar, iw - 155, 25, 150, ih - 60, "Toolbar", #PLACETEXT_ABOVE, selectedgadgets(), 0
+    GTTags #GTLV_ShowSelected, 0
+    GTListView #w_toolbaredit, #e_toolbar, iw - 205, 25, 200, ih - 60, "Toolbar", #PLACETEXT_ABOVE, selectedgadgets(), 0
 
-  GTButton #w_toolbaredit, #e_add, 160, 25, butw2, buth, "Add", #PLACETEXT_IN
-  GTButton #w_toolbaredit, #e_remove, 160, 49, butw2, buth, "Remove", #PLACETEXT_IN
-  GTButton #w_toolbaredit, #e_moveup, 160, 80, butw2, buth, "Up", #PLACETEXT_IN
-  GTButton #w_toolbaredit, #e_movedown, 160, 104, butw2, buth, "Down", #PLACETEXT_IN
+    GTButton #w_toolbaredit, #e_add, 210, 25, butw2, buth, "Add", #PLACETEXT_IN
+    GTButton #w_toolbaredit, #e_remove, 210, 49, butw2, buth, "Remove", #PLACETEXT_IN
+    GTButton #w_toolbaredit, #e_moveup, 210, 80, butw2, buth, "Up", #PLACETEXT_IN
+    GTButton #w_toolbaredit, #e_movedown, 210, 104, butw2, buth, "Down", #PLACETEXT_IN
 
 
-  GTButton #w_toolbaredit, #e_use, 5, ih - buth - 5, butw, buth, "Use", #PLACETEXT_IN
-  GTButton #w_toolbaredit, #e_cancel, iw - butw - 5, ih - buth - 5, butw, buth, "Cancel", #PLACETEXT_IN
-  AttachGTList #w_toolbaredit, #w_toolbaredit
+    GTButton #w_toolbaredit, #e_use, 5, ih - buth - 5, butw, buth, "Use", #PLACETEXT_IN
+    GTButton #w_toolbaredit, #e_cancel, iw - butw - 5, ih - buth - 5, butw, buth, "Cancel", #PLACETEXT_IN
+    AttachGTList #w_toolbaredit, #w_toolbaredit
+    GTBevelBox #w_toolbaredit, 0, 0, iw, ih, 0
 
-  setcurrentgadget{0}
-
+    setcurrentgadget{0}
+  Else
+    Request "DrawerGenie", "Error - Unable to open Edit Toolbar window", "Cancel"
+    CNIF #debug
+      NPrint "Error opening edit toolbar window"
+    CEND
+  End If
 End Statement
 
 
