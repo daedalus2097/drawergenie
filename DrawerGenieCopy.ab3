@@ -14,7 +14,7 @@
 ; MakeSmallest    = 1
 ; FuncOptimize    = 1
 ; Version         = 0.0.0
-; NumberOfBuilds  = 85
+; NumberOfBuilds  = 86
 ; 
 ; Debugger
 ; -------------------------------------------------------
@@ -31,7 +31,7 @@
 ; Editor
 ; -------------------------------------------------------
 ; CursorLine      = 24
-; CursorColumn    = 34
+; CursorColumn    = 28
 ; LabelSearch     = ""
 ; LabelRemark     = 0
 ; LabelAll        = 0
@@ -98,7 +98,7 @@ error_SetFlags{0}
 #debug = 0
 #copybuffer = 65536
 
-ver$ = "$VER: DrawerGenieCopy 0.2 (29.10.2023) by Rob Cranley"
+ver$ = "$VER: DrawerGenieCopy 0.3 (16.09.2024) by Rob Cranley"
 
 
 NEWTYPE .bordersizes
@@ -450,6 +450,26 @@ If memaddr
       NPrint "Copying file: ", path$(i)
     CEND
     fulldest$ = dos_AddPart{destpath$, dos_FilePart{path$(i)}}
+
+    ;If copyflags & #c_duplicate
+    ;  fname$ = "Copy_of_" + dos_FilePart{path$(i)}
+    ;  fulldest$ = dos_AddPart{destpath$, fname$}
+    ;
+    ;  If dos_Exist{fulldest$}
+    ;    copycounter.w = 0
+    ;    ef.b = False
+    ;    Repeat
+    ;      copycounter + 1
+    ;      fname$ = "Copy_" + Str$(copycounter) + "_of_" + dos_FilePart{path$(i)}
+    ;      fulldest$ = dos_AddPart{destpath$, fname$}
+    ;    Until dos_Exist{fulldest$} = False
+    ;  End If
+    ;
+    ;  If copyflags & #c_move
+    ;    copyflags - #c_move
+    ;  End If
+    ;
+    ;End If
 
     ev.l = Event
     If ev

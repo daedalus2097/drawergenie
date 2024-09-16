@@ -4,7 +4,7 @@
 ; General Info
 ; -------------------------------------------------------
 ; ExePath         = "DrawerGenie"
-; ExeFile         = "DrawerGenieLha"
+; ExeFile         = "DrawerGenieXad"
 ; CreateIcon      = 0
 ; Residents       = "all.res"
 ; 
@@ -14,7 +14,7 @@
 ; MakeSmallest    = 1
 ; FuncOptimize    = 1
 ; Version         = 0.0.0
-; NumberOfBuilds  = 104
+; NumberOfBuilds  = 113
 ; 
 ; Debugger
 ; -------------------------------------------------------
@@ -30,7 +30,7 @@
 ; 
 ; Editor
 ; -------------------------------------------------------
-; CursorLine      = 21
+; CursorLine      = 1
 ; CursorColumn    = 37
 ; LabelSearch     = ""
 ; LabelRemark     = 0
@@ -75,7 +75,7 @@
 ; Max XBSound     = 10
 ; Max Chunky      = 20
 ; /XTRA
-; *** DrawerGenieLha
+; *** DrawerGenieXad
 
 ; To do
 
@@ -95,7 +95,7 @@ error_SetFlags{0}
 #debug = 0
 #copybuffer = 65536
 
-ver$ = "$VER: DrawerGenieLha 0.3 (16.09.2024) by Rob Cranley"
+ver$ = "$VER: DrawerGenieXad 0.1 (16.09.2024) by Rob Cranley"
 
 
 NEWTYPE .bordersizes
@@ -277,7 +277,7 @@ If memaddr
 
   If iconcount; > 1
     openprogressbar{iconcount}
-    dos_Delete{"T:lhaoutput"}
+    dos_Delete{"T:xadoutput"}
   Else
     End
   End If
@@ -292,6 +292,7 @@ If memaddr
   End If
 
 
+  todo = False
 
   For i = 1 To iconcount
     CNIF #debug
@@ -316,13 +317,13 @@ If memaddr
     Select actionflags
       Case #a_list
         If dos_IsFile{path$(i)}
-          Execute_ "lha l \\22" + path$(i) + "\\22 >>T:lhaoutput", 0, 0
-          ;Execute_ "\\22" + destpath$ + "\\22 t:lhaoutput", 0, 0
+          Execute_ "xadunfile list \\22" + path$(i) + "\\22 >>T:xadoutput", 0, 0
+          Execute_ "more T:xadoutput", 0, 0
         End If
 
       Case #a_unpack
         If dos_IsFile{path$(i)}
-          cmd$ = "lha x \\22" + path$(i) + "\\22 \\22" + destpath$ + "\\22 >>T:lhaoutput"
+          cmd$ = "xadunfile \\22" + path$(i) + "\\22 dest \\22" + destpath$ + "\\22 >>T:xadoutput"
           CNIF #debug
             NPrint "Unpacking ", path$(i), " to ", destpath$
             NPrint "Line: ", cmd$
@@ -332,34 +333,36 @@ If memaddr
         End If
 
       Case #a_pack
-        todo = True
         archive$ = dos_AddPart{destpath$, archive$}
         If i = 1
           If dos_Exist{archive$}
             If allflag = 0
-              req.w = Request("DrawerGenie", "Warning: File|" + archive$ + "|already exists", "Overwrite|Overwrite all|Skip|Skip all|Cancel")
+              req.w = Request("DrawerGenie", "Warning: File|" + archive$ + "|already exists", "Overwrite|Cancel")
               Select req
                 Case 0 ; Cancel
                   todo = False
                   cancelflag = True
                 Case 1 ; Overwrite
+                  todo = True
                 Case 2 ; Overwrite all
                   allflag = #alloverwrite
+                  todo = True
                 Case 3 ; Skip
                   todo = False
                 Case 4 ; Skip all
                   todo = False
                   allflag = #allskip
               End Select
-            Else
-              If allflag = #allskip
-                todo = False
-              End If
+            ;Else
+            ;  If allflag = #allskip
+            ;    todo = False
+            ;  End If
             End If
             If todo
               succ.l = dos_Delete{archive$}
             End If
-
+          Else ; Archive doesn't exist
+            todo = True
           End If
         End If
 
@@ -370,6 +373,7 @@ If memaddr
           CEND
           Execute_ cmd$, 0, 0
 
+          Delay_ 50
           CNIF #debug
             NPrint "checking for .info file: " + path$(i) + ".info"
           CEND
@@ -396,7 +400,7 @@ If memaddr
   Next i
 
   If actionflags = #a_list
-    Execute_ "\\22" + destpath$ + "\\22 t:lhaoutput", 0, 0
+    Execute_ "\\22" + destpath$ + "\\22 t:xadoutput", 0, 0
   End If
 
 

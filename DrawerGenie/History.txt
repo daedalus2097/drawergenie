@@ -1,0 +1,42 @@
+History
+~~~~~~~
+0.7 (16.09.2024)
+- Added palette-remapping for toolbar graphics
+- Added support for user-defined toolbar graphics
+- Added support for XAD un-archiver
+- Added support for transparency in icon imagery
+- Added option to set polling frequency
+- Added support for AISS (incomplete)
+- Fixed many bugs throughout, including:
+  - Created archives only contained one selected icon
+  - Misaligned dropdown menus
+  - Misaligned options in Prefs window
+  
+
+0.5 / 0.6
+- Unreleased intermediate versions
+
+
+0.4 (06.11.2023)
+- Added Sort by Type option
+- Added support for popup items to be used in main toolbar
+- Changed OS version check from exec to workbench to suit some hybrid 3.1 / 3.9
+  installations
+- Fixed occasional misalignment of gadgets in drop-downs
+- Adjusted layout in preference and toolbar editing windows
+- Added *experimental* option to adjust windows to accommodate toolbar
+- Added HELP: to documentation search path
+- Added workaround for icon-only files preventing file operations (fallback
+  method using ARexx added)
+
+
+0.3 (31.10.2023)
+- Removed unnecessary dependency on wizard.library, DrawerGenie no longer
+  crashes when wizard.library isn't installed
+- Fixed bug causing original icon list to fill in when some icons removed
+- Fixed bug with popup alignment
+- Fixed About requester to show version
+
+
+0.2 (29.10.2023)
+- First internal beta release

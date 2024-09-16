@@ -14,7 +14,7 @@
 ; MakeSmallest    = 1
 ; FuncOptimize    = 1
 ; Version         = 0.0.0
-; NumberOfBuilds  = 419
+; NumberOfBuilds  = 436
 ; 
 ; Debugger
 ; -------------------------------------------------------
@@ -30,12 +30,12 @@
 ; 
 ; Editor
 ; -------------------------------------------------------
-; CursorLine      = 915
-; CursorColumn    = 21
+; CursorLine      = 718
+; CursorColumn    = 111
 ; LabelSearch     = ""
 ; LabelRemark     = 0
 ; LabelAll        = 0
-; LabelPosition   = 0
+; LabelPosition   = 17
 ; 
 ; Blitz Objects
 ; -------------------------------------------------------
@@ -77,6 +77,35 @@
 ; /XTRA
 
 ; *** Functions for DrawerGenie.ab3
+
+Function.w listtoolbars{}
+  SHARED prefs, toolbar$()
+  result.w = 0
+  tbdir$ = dos_AddPart{prefs\homedir, "Toolbars"}
+
+  CNIF #debug
+    NPrint "Checking dir ", tbdir$, " for toolbars"
+  CEND
+
+  ;quit.b = False
+  Repeat
+    tbname$ = dos_ScanDir{tbdir$, "~(#?.info)", #dos_scan_files}
+    If tbname$ <> ""
+      ;If LCase$(Right$(tbname$, 5)) <> ".info"
+      ;  quit = True
+      ;Else
+        If AddItem(toolbar$())
+          toolbar$() = dos_FilePart{tbname$}
+          result + 1
+          CNIF #debug
+            NPrint "Toolbar found: ", toolbar$()
+          CEND
+        End If
+      ;End If
+    End If
+  Until tbname$ = ""
+  Function Return result
+End Function
 
 
 Function.w getnewhelperid{}
@@ -293,7 +322,7 @@ Function.w addhelper{copyhistory.w} ;helper.w}
           \helperx = \winx + *currentwin\BorderLeft ;borderwidths\left
           \helpery = \winy + *currentwin\BorderTop ;borderwidths\top
           \helperw = \winw - *currentwin\BorderLeft - *currentwin\BorderRight ;borderwidths\left - borderwidths\right - 12
-          \helperh = 18
+          \helperh =  prefs\gadgeth + 2;18
 
 
           flags.l = #WFLG_BORDERLESS
@@ -309,7 +338,14 @@ Function.w addhelper{copyhistory.w} ;helper.w}
                   NPrint "Creating gadget ", gadgets(i)
                 CEND
                 If gadgets(i) = 999
-                  xpos + 10
+                  ;NPrint "Drawing spacer"
+                  ;spacerx.w = xpos + prefs\spacerw / 2 - 1
+                  ;Wline spacerx, 5, spacerx, prefs\gadgeth - 5, 2
+                  ;Wline spacerx + 1, 5, spacerx + 1, prefs\gadgeth - 5, 1
+
+                  ;Wline
+                  ;GTBevelBox newhelperid, xpos + prefs\spacerw / 2 - 2, 3, 4, prefs\gadgeth - 6, 1
+                  xpos + prefs\spacerw
                 Else
                   If gadgets(i) = #source OR gadgets(i) = #dest
                     flags = $2000
@@ -318,14 +354,14 @@ Function.w addhelper{copyhistory.w} ;helper.w}
                   End If
                   flags + $80 ; Report gadget down event
                   succ.l = GTShape(newhelperid, gadgets(i), xpos, 1, flags, gadgets(i), gadgets(i) + #selectedoffset)
-                  xpos + 16
+                  xpos + prefs\gadgetw ; 16
                 End If
               End If
             Next i
 
             AttachGTList newhelperid, newhelperid
             GTBevelBox newhelperid, 0, 0, \helperw, \helperh, 0
-
+            ;GTDisable newhelperid, 1
             If prefs\scrolldown
               adjustwindow{newhelperid}
 
@@ -522,31 +558,63 @@ End Function
 
 
 Statement openprefs{}
-  SHARED prefs, prefsopen, fontysize, screenw, screenh
+  SHARED prefs, prefsopen, fontysize, screenw, screenh, toolbar$()
 
   winw.w = 500
-  winh.w = 200
+  winh.w = 225
 
   flags.l = #WFLG_ACTIVATE|#WFLG_CLOSEGADGET|#WFLG_DEPTHGADGET|#WFLG_DRAGBAR|#WFLG_NEWLOOKMENUS
   *win.Window = Window(0, screenw / 2 - winw / 2, screenh / 2 - winh / 2, winw, winh, flags, "DrawerGenie Preferences", 1, 2)
   If *win
+    DefaultOutput
     GTGZZPosition Off
+    GTNewLookProp On
+
     prefsopen = True
     iw.w = InnerWidth
     ih.w = InnerHeight
     butwidth.w = iw / 3 - 7
     buth.w = fontysize + 6
     ;GTCheckBox 0, #p_closeprev, iw - buth - 10, 10, buth, buth, "Close previous drawer", #PLACETEXT_LEFT|$200
-    GTCheckBox 0, #p_closeprev, 5, 5, buth, buth, "Close previous drawer", #PLACETEXT_RIGHT|$200
-    GTCheckBox 0, #p_adjustdrawer, iw / 2 + 2, 5, buth, buth, "Adjust drawer for toolbar", #PLACETEXT_RIGHT|$200
-    GTString 0, #p_viewer, 205, 29, iw - 211 - buth, buth, "Default viewer path", #PLACETEXT_LEFT, 255, prefs\viewer
-    GTButton 0, #p_viewerselect, iw - 5 - buth, 29, buth, buth, "?", #PLACETEXT_IN
-    GTString 0, #p_homedir, 205, 53, iw - 211 - buth, buth, "Home Directory", #PLACETEXT_LEFT, 255, prefs\homedir
-    GTButton 0, #p_homedirselect, iw - 5 - buth, 53, buth, buth, "?", #PLACETEXT_IN
-    GTString 0, #p_toolbarhotkey, 205, 77, 80, buth, "Toolbar Hotkey", #PLACETEXT_LEFT, 25, prefs\toolbarhotkey
-    GTString 0, #p_openhotkey, iw - 85, 77, 80, buth, "Open Hotkey", #PLACETEXT_LEFT, 25, prefs\openhotkey
-    GTButton 0, #p_edittoolbar, 205, 106, iw - 210, buth, "Edit Toolbar...", #PLACETEXT_IN
+    GTCheckBox 0, #p_closeprev, 210, 5, buth, buth, "Close previous drawer", #PLACETEXT_LEFT|$200
+    GTCheckBox 0, #p_adjustdrawer, iw - 5 - buth, 5, buth, buth, "Adjust drawer for toolbar", #PLACETEXT_LEFT|$200
+    GTString 0, #p_viewer, 60, 30, 150, buth, "Viewer", #PLACETEXT_LEFT, 255, prefs\viewer
+    GTButton 0, #p_viewerselect, 210, 30, buth, buth, "?", #PLACETEXT_IN
+    GTString 0, #p_homedir, iw - 150 - buth - 5, 30, 150, buth, "Home Dir", #PLACETEXT_LEFT, 255, prefs\homedir
+    GTButton 0, #p_homedirselect, iw - 5 - buth, 30, buth, buth, "?", #PLACETEXT_IN
+    GTString 0, #p_toolbarhotkey, 130 + buth, 55, 80, buth, "Toolbar Hotkey", #PLACETEXT_LEFT, 25, prefs\toolbarhotkey
+    GTString 0, #p_openhotkey, iw - 85, 55, 80, buth, "Open Hotkey", #PLACETEXT_LEFT, 25, prefs\openhotkey
+    ;GTInteger 0, #p_pollperiod, iw - 85, 105, 80, buth, "Polling period", #PLACETEXT_LEFT, prefs\pollperiod
+    GTSlider 0, #p_pollperiod, iw - 85, 105, 80, buth, "Polling period", #PLACETEXT_LEFT, 1, 20, prefs\pollperiod
 
+    ResetList toolbar$()
+    tbcount.w = 0
+    currentoption.w = 0
+    While NextItem(toolbar$())
+      If tbcount > 0
+        option$ + "|"
+      End If
+      option$ + toolbar$()
+      If toolbar$() = prefs\toolbar
+        currentoption = tbcount
+      End If
+      tbcount + 1
+    End While
+
+    CNIF #debug
+      NPrint "Option string: ", option$
+    CEND
+
+    GTCycle 0, #p_toolbar, 70, 80, 140 + buth, buth, "Toolbar", #PLACETEXT_LEFT, option$, currentoption
+
+    ;GTString 0, #p_toolbar, 60, 80, 150, buth, "Toolbar", #PLACETEXT_LEFT, 255, prefs\toolbar
+    ;GTButton 0, #p_toolbarselect, 210, 80, buth, buth, "?", #PLACETEXT_IN
+    GTCheckBox 0, #p_useaiss, iw - 5 - buth, 80, buth, buth, "Use AISS", #PLACETEXT_LEFT|$200
+
+    GTCycle 0, #p_archiver, 70, 105, 140 + buth, buth, "Archiver", #PLACETEXT_LEFT, "Lha|Xad", prefs\archiver
+
+    GTButton 0, #p_edittoolbar, 5, 130, 205 + buth, buth, "Edit Toolbar...", #PLACETEXT_IN
+                                                                                                                                                                    
 
     GTButton 0, #p_save, 5, ih - buth - 5, butwidth, buth, "Save", #PLACETEXT_IN
     GTButton 0, #p_use, iw / 2 - butwidth / 2, ih - buth - 5, butwidth, buth, "Use", #PLACETEXT_IN
@@ -560,6 +628,11 @@ Statement openprefs{}
     If prefs\scrolldown
       GTToggle 0, #p_adjustdrawer, On
     End If
+    If prefs\useaiss
+      GTToggle 0, #p_useaiss, On
+      GTDisable 0, #p_toolbar
+    End If
+                                                                                                                                                                                                                                                      
 
 
     DefaultOutput
@@ -710,13 +783,17 @@ Statement paste{helperid.w}
     copyflags.w = 0
     iconcount.w = 0
 
-    If samevol
+    If samevol AND cut ;= True
       copyflags + #c_move
     End If
     If cut
       copyflags + #c_delete
     End If
 
+    If samedir AND cut = False
+      copyflags = #c_duplicate
+      arexx_SendMessage{"WORKBENCH", "MENU WINDOW \\22" + helpers(helperid)\path + "\\22 INVOKE ICONS.COPY"}
+    End If
 
     While fn$ <> ""
       If AddItem(fname$())
@@ -729,28 +806,28 @@ Statement paste{helperid.w}
     CloseFile 0
     DefaultInput
 
+    If samedir = False
+      pathsbuffer.l = AllocMem_(256 * (iconcount + 1) + 4, 0)
+      If pathsbuffer
+        Poke.w pathsbuffer, iconcount
+        Poke.w pathsbuffer + 2, copyflags
+        Poke$ pathsbuffer + 4, helpers(helperid)\path
+        ResetList fname$()
+        For i.w = 0 To iconcount - 1
+          If NextItem(fname$())
+            Poke$ pathsbuffer + 4 + 256 + i * 256, dos_AddPart{pt$, fname$()}
+          End If
+        Next i
+      Else
+        Request "DrawerGenie", "Error - Unable to allocate memory", "Cancel"
+      End If
 
-    pathsbuffer.l = AllocMem_(256 * (iconcount + 1) + 4, 0)
-    If pathsbuffer
-      Poke.w pathsbuffer, iconcount
-      Poke.w pathsbuffer + 2, copyflags
-      Poke$ pathsbuffer + 4, helpers(helperid)\path
-      ResetList fname$()
-      For i.w = 0 To iconcount - 1
-        If NextItem(fname$())
-          Poke$ pathsbuffer + 4 + 256 + i * 256, dos_AddPart{pt$, fname$()}
-        End If
-      Next i
-    Else
-      Request "DrawerGenie", "Error - Unable to allocate memory", "Cancel"
+      command$ = "run \\22" + dos_AddPart{prefs\homedir, "DrawerGenieCopy\\22"} + " " + Str$(pathsbuffer) + " >T:test.txt"
+      CNIF #debug
+        NPrint "Sending: ", Hex$(pathsbuffer), ", Size: ", 4 + 256 + iconcount * 256
+      CEND
+      Execute_ command$, 0, 0
     End If
-                                                                                                                                                                                                                                                      
-    command$ = "run \\22" + dos_AddPart{prefs\homedir, "DrawerGenieCopy\\22"} + " " + Str$(pathsbuffer) + " >T:test.txt"
-    CNIF #debug
-      NPrint "Sending: ", Hex$(pathsbuffer), ", Size: ", 4 + 256 + iconcount * 256
-    CEND
-    Execute_ command$, 0, 0
-                                                                                                                                                                                                                                                      
 
     If cut
       dos_Delete{"T:WBCutnPaste"}
@@ -815,6 +892,21 @@ Statement historyclear{helper.w}
 End Statement
 
 
+Statement calculatexpos{}
+  SHARED prefs, gadgets(), gadgetxpos(), lastgadget
+  xpos.w = 0
+  For i.w = 0 To lastgadget
+    If gadgets(i) = 999
+      xpos + prefs\spacerw
+    Else
+      gadgetxpos(gadgets(i)) = xpos
+      xpos + prefs\gadgetw
+    End If
+  Next i
+
+End Statement
+
+
 Statement defprefs{}
   SHARED prefs, gadgets(), lastgadget, gadgetxpos()
 
@@ -824,15 +916,18 @@ Statement defprefs{}
   xpos.w = 0
   For i.w = 0 To lastgadget
     Read gadgets(i)
-    If gadgets(i) = 999
-      xpos + 10
-    Else
-      gadgetxpos(gadgets(i)) = xpos
-      xpos + 16
-    End If
+    ;If gadgets(i) = 999
+    ;  xpos + 10
+    ;Else
+    ;  gadgetxpos(gadgets(i)) = xpos
+    ;  xpos + 16
+    ;End If
   Next i
 
   Data.w 1, 2, 999, 3, 4, 5, 999, 6, 7, 8, 9, 22, 24, 25, 18, 999, 13, 14, 15, 16, 999, 17, 19, 20, 999, 28, 29, 30, 31, 32, 33
+
+
+  calculatexpos{}
 
   prefs\viewer = "SYS:Utilities/Multiview"
   prefs\closeprevious = 1
@@ -841,8 +936,11 @@ Statement defprefs{}
   prefs\findnewwindows = 1
   prefs\toolbarhotkey = "F1"
   prefs\openhotkey = "Shift Return"
-
-
+  prefs\gadgeth = 16
+  prefs\gadgetw = 16
+  prefs\useaiss = False
+  prefs\toolbar = "toolbar.iff" ;"default.iff"
+  prefs\pollperiod = 5
 End Statement
 
 
@@ -863,17 +961,24 @@ Statement prefsload{}
       prefs\toolbarhotkey = Edit$(32)
       prefs\openhotkey = Edit$(32)
       lastgadget = Edit(10)
-      xpos.w = 0
+      ;xpos.w = 0
       For i.w = 0 To lastgadget
         gadgets(i) = Edit(10)
-        If gadgets(i) = 999
-          xpos + 10
-        Else
-          gadgetxpos(gadgets(i)) = xpos
-          xpos + 16
-        End If
+        ;If gadgets(i) = 999
+        ;  xpos + 10
+        ;Else
+        ;  gadgetxpos(gadgets(i)) = xpos
+        ;  xpos + prefs\gadgetw
+        ;End If
       Next i
-    PopInput
+      prefs\toolbar = Edit$(255)
+      ;prefs\gadgetw = Edit(10)
+      ;prefs\gadgeth = Edit(10)
+      prefs\useaiss = Edit(10)
+      prefs\pollperiod = Edit(10)
+      If prefs\pollperiod < 1 Then prefs\pollperiod = 5
+      prefs\archiver = Edit(10)
+      PopInput
     CloseFile 0
   Else
     CNIF #debug
@@ -908,6 +1013,12 @@ Statement prefssave{save.b} ; True = save in ENVARC:, false = save in ENV:
       For i.w = 0 To lastgadget
         NPrint gadgets(i)
       Next i
+      NPrint prefs\toolbar
+      ;NPrint prefs\gadgetw
+      ;NPrint prefs\gadgeth
+      NPrint prefs\useaiss
+      NPrint prefs\pollperiod
+      NPrint prefs\archiver
     PopOutput
     CloseFile 0
   Else
@@ -917,12 +1028,262 @@ Statement prefssave{save.b} ; True = save in ENVARC:, false = save in ENV:
 End Statement
 
 
-Statement getprefs{}
+Statement processtoolbar{}
   SHARED prefs
+
+  If prefs\useaiss
+    If dos_CheckAssign{"TBIMAGES:"}
+      ef.b = False
+      If image_LoadShape{#back, "TBIMAGES:nav_west_h.iff"} = False Then ef = True
+      If image_LoadShape{#back + #selectedoffset, "TBIMAGES:nav_west.iff"} = False Then ef = True
+      ;LoadShape #back, "TBIMAGES:nav_west_h.iff"
+      ;LoadShape #back + #selectedoffset, "TBIMAGES:nav_west.iff"
+      If image_LoadShape{#parent, "TBIMAGES:parent_h"} = False Then ef = True
+      If image_LoadShape{#parent + #selectedoffset, "TBIMAGES:parent"} = False Then ef = True
+      If image_LoadShape{#cut, "TBIMAGES:cut"} = False Then ef = True
+      If image_LoadShape{#cut + #selectedoffset, "TBIMAGES:cut_s"} = False Then ef = True
+      If image_LoadShape{#copy, "TBIMAGES:copy"} = False Then ef = True
+      If image_LoadShape{#copy + #selectedoffset, "TBIMAGES:copy_s"} = False Then ef = True
+      If image_LoadShape{#paste, "TBIMAGES:paste"} = False Then ef = True
+      If image_LoadShape{#paste + #selectedoffset, "TBIMAGES:paste_s"} = False Then ef = True
+      If image_LoadShape{#refresh, "TBIMAGES:reload"} = False Then ef = True
+      If image_LoadShape{#refresh + #selectedoffset, "TBIMAGES:reload_s"} = False Then ef = True
+      If image_LoadShape{#newdrawer, "TBIMAGES:newdrawer"} = False Then ef = True
+      If image_LoadShape{#newdrawer + #selectedoffset, "TBIMAGES:newdrawer_s"} = False Then ef = True
+      If image_LoadShape{#info, "TBIMAGES:info"} = False Then ef = True
+      If image_LoadShape{#info + #selectedoffset, "TBIMAGES:info_s"} = False Then ef = True
+      If image_LoadShape{#delete, "TBIMAGES:delete"} = False Then ef = True
+      If image_LoadShape{#delete + #selectedoffset, "TBIMAGES:delete_s"} = False Then ef = True
+      If image_LoadShape{#textview, "TBIMAGES:viewas_list"} = False Then ef = True
+      If image_LoadShape{#textview + #selectedoffset, "TBIMAGES:viewas_list_s"} = False Then ef = True
+      If image_LoadShape{#iconview, "TBIMAGES:viewas_icons"} = False Then ef = True
+      If image_LoadShape{#iconview + #selectedoffset, "TBIMAGES:viewas_icons_s"} = False Then ef = True
+      If image_LoadShape{#sortalpha, "TBIMAGES:sortdown"} = False Then ef = True
+      If image_LoadShape{#sortalpha + #selectedoffset, "TBIMAGES:sortdown_s"} = False Then ef = True
+      If image_LoadShape{#source, "TBIMAGES:reload"} = False Then ef = True
+      If image_LoadShape{#source + #selectedoffset, "TBIMAGES:reload_s"} = False Then ef = True
+      If image_LoadShape{#dest, "TBIMAGES:reload"} = False Then ef = True
+      If image_LoadShape{#dest + #selectedoffset, "TBIMAGES:reload_s"} = False Then ef = True
+      If image_LoadShape{#copyto, "TBIMAGES:copyto"} = False Then ef = True
+      If image_LoadShape{#copyto + #selectedoffset, "TBIMAGES:copyto_s"} = False Then ef = True
+      If image_LoadShape{#moveto, "TBIMAGES:movetofolder"} = False Then ef = True
+      If image_LoadShape{#moveto + #selectedoffset, "TBIMAGES:movetofolder_s"} = False Then ef = True
+      If image_LoadShape{#view, "TBIMAGES:preview"} = False Then ef = True
+      If image_LoadShape{#view + #selectedoffset, "TBIMAGES:preview_s"} = False Then ef = True
+      If image_LoadShape{#rename, "TBIMAGES:rename"} = False Then ef = True
+      If image_LoadShape{#rename + #selectedoffset, "TBIMAGES:rename_s"} = False Then ef = True
+      If image_LoadShape{#open, "TBIMAGES:run"} = False Then ef = True
+      If image_LoadShape{#open + #selectedoffset, "TBIMAGES:run_s"} = False Then ef = True
+      If image_LoadShape{#selectall, "TBIMAGES:file_selectall"} = False Then ef = True
+      If image_LoadShape{#selectall + #selectedoffset, "TBIMAGES:file_selectall_s"} = False Then ef = True
+      If image_LoadShape{#sortbydate, "TBIMAGES:sort"} = False Then ef = True
+      If image_LoadShape{#sortbydate + #selectedoffset, "TBIMAGES:sort_s"} = False Then ef = True
+      If image_LoadShape{#viewtype, "TBIMAGES:selecttoggle"} = False Then ef = True
+      If image_LoadShape{#viewtype + #selectedoffset, "TBIMAGES:selecttoggle_s"} = False Then ef = True
+      If image_LoadShape{#sortbysize, "TBIMAGES:sort"} = False Then ef = True
+      If image_LoadShape{#sortbysize + #selectedoffset, "TBIMAGES:sort_s"} = False Then ef = True
+      If image_LoadShape{#sort, "TBIMAGES:sortingandgrouping"} = False Then ef = True
+      If image_LoadShape{#sort + #selectedoffset, "TBIMAGES:sortingandgrouping_s"} = False Then ef = True
+      If image_LoadShape{#viewfiles, "TBIMAGES:viewas_icons"} = False Then ef = True
+      If image_LoadShape{#viewfiles + #selectedoffset, "TBIMAGES:viewas_icons_s"} = False Then ef = True
+      If image_LoadShape{#onlyicons, "TBIMAGES:viewas_icons"} = False Then ef = True
+      If image_LoadShape{#onlyicons + #selectedoffset, "TBIMAGES:viewas_icons_s"} = False Then ef = True
+      If image_LoadShape{#allfiles, "TBIMAGES:viewas_icons"} = False Then ef = True
+      If image_LoadShape{#allfiles + #selectedoffset, "TBIMAGES:viewas_icons_s"} = False Then ef = True
+      If image_LoadShape{#shell, "TBIMAGES:shell"} = False Then ef = True
+      If image_LoadShape{#shell + #selectedoffset, "TBIMAGES:shell_s"} = False Then ef = True
+      If image_LoadShape{#unpack, "TBIMAGES:archiveextract"} = False Then ef = True
+      If image_LoadShape{#unpack + #selectedoffset, "TBIMAGES:archiveextract_s"} = False Then ef = True
+      If image_LoadShape{#viewlha, "TBIMAGES:archiveview"} = False Then ef = True
+      If image_LoadShape{#viewlha + #selectedoffset, "TBIMAGES:archiveview_s"} = False Then ef = True
+      If image_LoadShape{#pack, "TBIMAGES:archiveadd"} = False Then ef = True
+      If image_LoadShape{#pack + #selectedoffset, "TBIMAGES:archiveadd_s"} = False Then ef = True
+      If image_LoadShape{#find, "TBIMAGES:find"} = False Then ef = True
+      If image_LoadShape{#find + #selectedoffset, "TBIMAGES:find_s"} = False Then ef = True
+      If image_LoadShape{#help, "TBIMAGES:help"} = False Then ef = True
+      If image_LoadShape{#help + #selectedoffset, "TBIMAGES:help_s"} = False Then ef = True
+      If image_LoadShape{#sortbytype, "TBIMAGES:sort"} = False Then ef = True
+      If image_LoadShape{#sortbytype + #selectedoffset, "TBIMAGES:sort_s"} = False Then ef = True
+
+      If ef = False
+        NPrint "Failed to load"
+        prefs\gadgetw = ShapeWidth(1)
+        prefs\gadgeth = ShapeHeight(1)
+        prefs\spacerw = prefs\gadgetw / 2 + 2
+
+        For i.w = 1 To #allgadgets
+          ShapesBitMap i, 1
+
+
+          Use BitMap 1
+
+          bgcol.w = Point(0, 0)
+          NPrint "Background Pen: ", bgcol
+
+
+          ReMap bgcol, 0
+
+          ShapesBitMap i + #selectedoffset, 1
+
+
+          Use BitMap 1
+
+          bgcol.w = Point(0, 0)
+          NPrint "Background Pen: ", bgcol
+
+
+          ReMap bgcol, 0
+
+
+        Next i
+      End If
+      calculatexpos{}
+    Else
+      Request "DrawerGenie", "Error - AISS not found. Switching to normal toolbar", "Continue"
+      prefs\useaiss = False
+    End If
+  End If
+
+  If prefs\useaiss = False
+    tb$ = dos_AddPart{"Toolbars", prefs\toolbar}
+    toolbarfn$ = dos_AddPart{prefs\homedir, tb$}
+
+    If dos_Exist{toolbarfn$} = False
+      Request "DrawerGenie", "Error - Unable to find DrawerGenie files|Can't find " + toolbarfn$ + "|Please select where the DrawerGenie files are located", "Continue"
+      pt$ = prefs\homedir
+      If aslfr_Request{1, False, False, True}
+        pt$ = aslfr_GetPath{1}
+        toolbarfn$ = dos_AddPart{pt$, tb$}
+
+        If dos_Exist{toolbarfn$} = False
+          Request "DrawerGenie", "Error - Files could not be found|Please quit and try again", "Quit"
+          End
+        End If
+
+      Else
+        End
+      End If
+    End If
+
+
+    ILBMInfo toolbarfn$
+    bmapw.w = ILBMWidth
+    bmaph.w = ILBMHeight
+    bmapd.w = ILBMDepth
+    ;LoadPalette 0, toolbarfn$
+    prefs\gadgetw = bmapw / #allgadgets
+    prefs\gadgeth = bmaph / 2
+    prefs\spacerw = prefs\gadgetw / 2 + 2
+    ;BitMap 0, bmapw, bmaph, bmapd ;#allgadgets * prefs\gadgetw, prefs\gadgeth * 2, 2
+
+    ;LoadShape 0, toolbarfn$
+    image_LoadShape{0, toolbarfn$} ;, $CCCCCC}
+    ShapesBitMap 0, 0
+
+
+    Use BitMap 0
+
+    bgcol.w = Point(1, 1)
+    NPrint "Background Pen: ", bgcol
+
+
+    ReMap bgcol, 0
+
+
+    For i.w = 0 To 1
+      For j.w = 0 To #allgadgets - 1
+        GetaShape i * #selectedoffset + j + 1, j * prefs\gadgetw, i * prefs\gadgeth, prefs\gadgetw, prefs\gadgeth
+      Next j
+    Next i
+
+    Free BitMap 0
+    ;image_LoadShape{1, "TBIMAGES:avatar_admin"}
+    calculatexpos{}
+  End If
+
+End Statement
+
+
+
+Statement changetoolbar{}
+  SHARED prefs, helpers(), lastgadget, gadgets()
+  USEPATH helpers(i)
+  Dim isopen.b(#maxhelpers)
+
+  For i.w = 1 To #maxhelpers
+    If helpers(i)\inuse
+      isopen(i) = True
+      CloseWindow i
+      Free GTList i
+    End If
+  Next i
+
+  For i = #back To #sortbytype
+    Free Shape i
+  Next i
+
+  processtoolbar{}
+
+
+  For i = 1 To #maxhelpers
+    If isopen(i)
+      flags.l = #WFLG_BORDERLESS
+      \helperh =  prefs\gadgeth + 2
+      \helperwinaddr = Window(i, \helperx, \helpery, \helperw, \helperh, flags, "", 1, 2)
+      DefaultOutput
+
+      If \helperwinaddr
+        GTGZZPosition On
+        xpos.w = 1
+        For j.w = 0 To lastgadget ;#maxgadgets - 1
+          If gadgets(j) > 0
+            CNIF #debug
+              NPrint "Creating gadget ", gadgets(j)
+            CEND
+            If gadgets(j) = 999
+              xpos + prefs\spacerw
+            Else
+              If gadgets(j) = #source OR gadgets(j) = #dest
+                flags = $2000
+              Else
+                flags = 0
+              End If
+              flags + $80 ; Report gadget down event
+              succ.l = GTShape(i, gadgets(j), xpos, 1, flags, gadgets(j), gadgets(j) + #selectedoffset)
+              xpos + prefs\gadgetw ; 16
+            End If
+          End If
+        Next j
+        AttachGTList i, i
+        GTBevelBox i, 0, 0, \helperw, \helperh, 0
+        ;GTDisable newhelperid, 1
+
+      Else
+        Request "DrawerGenie", "Error - Unable to open helper window", "Cancel"
+        \inuse = False
+      End If
+
+    End If
+  Next i
+
+
+
+  USELASTPATH
+End Statement
+
+Statement getprefs{}
+  SHARED prefs, toolbar$(), tbcount
 
   prefs\viewer = GTGetString(0, #p_viewer)
   prefs\closeprevious = GTStatus(0, #p_closeprev)
   prefs\scrolldown = GTStatus(0, #p_adjustdrawer)
+
+  useaiss.w = GTStatus(0, #p_useaiss)
+  toolbarchanged.b = False
+  If useaiss <> prefs\useaiss
+    toolbarchanged = True
+  End If
+  prefs\useaiss = useaiss
 
   hk$ = GTGetString(0, #p_toolbarhotkey)
   If hk$ <> prefs\toolbarhotkey
@@ -941,6 +1302,36 @@ Statement getprefs{}
   prefs\openhotkey = hk$
 
   prefs\homedir = GTGetString(0, #p_homedir)
+
+  currentoption.w = GTGetAttrs(0, #p_toolbar, #GTCY_Active)
+  ResetList toolbar$()
+  For i.w = 0 To currentoption
+    x.w = NextItem(toolbar$())
+  Next i
+
+  If prefs\toolbar <> toolbar$()
+    prefs\toolbar = toolbar$()
+    ;Request "DrawerGenie", "Warning: Toolbar changes to no take effect until|DrawerGenie is restarted", "Ok"
+    toolbarchanged = True
+  End If
+
+  prefs\pollperiod = GTGetAttrs(0, #p_pollperiod, #GTSL_Level)
+  ;prefs\pollperiod = GTGetInteger(0, #p_pollperiod)
+  If prefs\pollperiod < 1 Then prefs\pollperiod = 1
+  If prefs\pollperiod > 20 Then prefs\pollperiod = 20
+  prefs\archiver = GTGetAttrs(0, #p_archiver, #GTCY_Active)
+
+
+  If toolbarchanged
+    CNIF #debug
+      NPrint "Toolbar changed"
+    CEND
+    changetoolbar{}
+  End If
+
+  CNIF #debug
+    NPrint "Toolbar selected: ", toolbar$()
+  CEND
 End Statement
 
 
@@ -981,13 +1372,13 @@ End Statement
 
 
 Function.w opendropdown{ew.w, gh.w, count.b}
-  SHARED helpers(), borderwidths, gadgetxpos()
+  SHARED helpers(), borderwidths, gadgetxpos(), prefs
   popupx.w = helpers(ew)\helperx + gadgetxpos(gh)
-  popupy.w = helpers(ew)\helpery + 18
-  popuph.w = 16 * count + 2
+  popupy.w = helpers(ew)\helpery + prefs\gadgeth + 2
+  popuph.w = prefs\gadgeth * count + 2
 
   flags.l = #WFLG_BORDERLESS
-  If Window(#w_popup, popupx, popupy, 18, popuph, flags, "", 1, 2)
+  If Window(#w_popup, popupx, popupy, prefs\gadgetw + 2, popuph, flags, "", 1, 2)
 
     GTGZZPosition On
     DefaultOutput
@@ -995,22 +1386,22 @@ Function.w opendropdown{ew.w, gh.w, count.b}
     Select gh
       Case #viewtype
         GTShape #w_popup, 1, 1, 1, 0, #textview, #textview + #selectedoffset
-        GTShape #w_popup, 2, 1, 17, 0, #iconview, #iconview + #selectedoffset
+        GTShape #w_popup, 2, 1, prefs\gadgeth + 1, 0, #iconview, #iconview + #selectedoffset
 
       Case #sort
         GTShape #w_popup, 1, 1, 1, 0, #sortalpha, #sortalpha + #selectedoffset
-        GTShape #w_popup, 2, 1, 17, 0, #sortbydate, #sortbydate + #selectedoffset
-        GTShape #w_popup, 3, 1, 33, 0, #sortbysize, #sortbysize + #selectedoffset
-        GTShape #w_popup, 4, 1, 49, 0, #sortbytype, #sortbytype + #selectedoffset
+        GTShape #w_popup, 2, 1, prefs\gadgeth + 1, 0, #sortbydate, #sortbydate + #selectedoffset
+        GTShape #w_popup, 3, 1, prefs\gadgeth * 2 + 1, 0, #sortbysize, #sortbysize + #selectedoffset
+        GTShape #w_popup, 4, 1, prefs\gadgeth * 3 + 1, 0, #sortbytype, #sortbytype + #selectedoffset
 
       Case #viewfiles
         GTShape #w_popup, 1, 1, 1, 0, #onlyicons, #onlyicons + #selectedoffset
-        GTShape #w_popup, 2, 1, 17, 0, #allfiles, #allfiles + #selectedoffset
+        GTShape #w_popup, 2, 1, prefs\gadgeth + 1, 0, #allfiles, #allfiles + #selectedoffset
 
     End Select
 
     AttachGTList #w_popup, #w_popup
-    GTBevelBox #w_popup, 0, 0, 18, popuph, 0
+    GTBevelBox #w_popup, 0, 0, prefs\gadgetw + 2, popuph, 0
 
     prevgad.w = 0
 
@@ -1022,10 +1413,10 @@ Function.w opendropdown{ew.w, gh.w, count.b}
       my.w = SMouseY - popupy
       currentgad.w = 0
       If mx > 1
-        If mx < 17
+        If mx < prefs\gadgeth + 1
           If my > 1
-            If my < 16 * count + 1
-              currentgad.w = my / 16 + 1
+            If my < prefs\gadgeth * count + 1
+              currentgad.w = my / prefs\gadgeth + 1
               If currentgad
                 GTToggle #maxhelpers + 1, currentgad, On
               End If
@@ -1159,3 +1550,6 @@ Statement closeedittoolbar{}
   toolbareditopen = False
 End Statement
 
+                                                                                                                                                                                                                                                        
+
+                                                                                                                                                                                                                                             

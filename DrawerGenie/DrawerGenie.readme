@@ -1,0 +1,100 @@
+Short:        Toolbar for Workbench Drawers
+Author:       Rob Cranley
+Uploader:     robcranley@gmail.com (Rob Cranley)
+Type:         util/wb
+Version:      0.7
+Architecture: m68k-amigaos >= 3.5
+Requires:     
+
+
+DrawerGenie
+~~~~~~~~~~~
+DrawerGenie is a commodity that lets you add a small toolbar to any Workbench
+drawer window, offering useful file functions like cut/copy/paste, DOpus-style
+source/destination copying and moving, back and parent functions, Lha archive
+support and more.
+
+DrawerGenie is an entry to the 2023 Amiga Tool Jam in the Commodity category.
+Full sourcecode is available at https://github.com/daedalus2097/drawergenie
+
+
+Credits
+~~~~~~~
+Two additional toolbars (toolbar and toolbar_HD) are now included. Thanks to
+Artur Bardowski for his submission!
+
+
+Warning
+~~~~~~~
+DrawerGenie is Beta software. It contains bugs, and while every effort has
+been made to make the program as safe as possible, due to its integration with
+workbench and its intended function of manipulating files and directories it's
+possible that an unforeseen situation may cause unexpected data loss. Use it at
+your own risk. 
+
+
+Requirements
+~~~~~~~~~~~~
+DrawerGenie relies on many features of Workbench introduced with OS 3.5 
+(workbench.library v44) and cannot be used with earlier versions of Workbench.
+Note that OS 3.9, 3.1.4 and 3.2 all include suitable versions of Workbench, and
+DrawerGenie can be used with these.
+
+For Lha archive support, the Lha executable must be in the system path (usually
+SYS:C).
+
+For XAD support, XAD must be installed, with XADUnFile in the system path.
+
+
+Quickstart
+~~~~~~~~~~
+Double-click the DrawerGenie icon to start it. It will normally run quietly in
+the background.
+Double-click it again to open the Preferences window.
+Press F1 to attach a toolbar to the active Workbench window. The toolbar will
+move and resize to suit the window. Expand the Workbench window if necessary to
+see more gadgets.
+Click the gadgets in the toolbar to perform the corresponding action.
+Hold down the Help key while clicking a gadget for brief pop-up help.
+
+
+Installation
+~~~~~~~~~~~~
+Unpack DrawerGenie to a suitable location and run the Installer script. It can
+also be installed manually by storing the unpacked drawer on your hard drive.
+DrawerGenie needs to be able to find the other files in its drawer, so if you
+move the executable away from these files, set the HOMEDIR icon tooltype to the
+drawer containing the rest of the files. This can also be set in the program
+preferences. If you used the included Installer script, this setting will be
+set automatically. 
+
+To have DrawerGenie start when the system boots, copy the DrawerGenie program
+to WBStartup and set the HOMEDIR icon tooltype to the original drawer. The
+Installer script will do this for you if you wish.
+
+
+Usage
+~~~~~
+DrawerGenie can be started by opening its icon or automatically on boot. It
+will normally start running silently in the background as a commodity, and can
+be controlled and removed using the Workbench Exchange commodity or similar. To
+add a toolbar to a Workbench drawer window, press F1 when the desired window is
+active.
+
+Running its icon a second time will open the Preferences window, as will issuing
+a Show command from Exchange.
+
+
+Changes
+~~~~~~~
+0.7 (16.09.2024)
+- Added palette-remapping for toolbar graphics
+- Added support for user-defined toolbar graphics
+- Added support for XAD un-archiver
+- Added support for transparency in icon imagery
+- Added option to set polling frequency
+- Added support for AISS (incomplete)
+- Fixed many bugs throughout, including:
+  - Created archives only contained one selected icon
+  - Misaligned dropdown menus
+  - Misaligned options in Prefs window

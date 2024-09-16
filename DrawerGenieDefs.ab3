@@ -30,8 +30,8 @@
 ; 
 ; Editor
 ; -------------------------------------------------------
-; CursorLine      = 68
-; CursorColumn    = 5
+; CursorLine      = 57
+; CursorColumn    = 47
 ; LabelSearch     = ""
 ; LabelRemark     = 0
 ; LabelAll        = 0
@@ -131,7 +131,7 @@
 #c_delete = 1 ; Delete after copying (successfully!)
 #c_force = 2 ; Don't pop up an overwrite requester
 #c_move = 4 ; Rename the file instead (Filesystem move)
-
+#c_duplicate = 8 ; Duplicate the file in place
 
 ; View modes
 #v_icon = 0

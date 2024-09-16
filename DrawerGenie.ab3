@@ -14,7 +14,7 @@
 ; MakeSmallest    = 1
 ; FuncOptimize    = 1
 ; Version         = 0.0.0
-; NumberOfBuilds  = 931
+; NumberOfBuilds  = 1096
 ; 
 ; Debugger
 ; -------------------------------------------------------
@@ -30,8 +30,8 @@
 ; 
 ; Editor
 ; -------------------------------------------------------
-; CursorLine      = 15
-; CursorColumn    = 44
+; CursorLine      = 234
+; CursorColumn    = 128
 ; LabelSearch     = ""
 ; LabelRemark     = 0
 ; LabelAll        = 0
@@ -41,39 +41,39 @@
 ; -------------------------------------------------------
 ; Max File        = 5
 ; Max GadgetList  = 5
-; Max Shape       = 100
-; Max Bank        = 5
-; Max MenuList    = 5
-; Max GTList      = 50
-; Max Palette     = 4
-; Max BitMap      = 10
+; Max Queue       = 10
 ; Max Screen      = 5
-; Max IntuiFont   = 5
-; Max BlitzFont   = 4
+; Max Shape       = 100
+; Max CopList     = 10
+; Max Sprite      = 20
+; Max Stencil     = 5
+; Max Module      = 5
 ; Max Window      = 20
+; Max Anim        = 10
+; Max Sound       = 10
+; Max Bank        = 5
+; Max Buffer      = 10
+; Max Slice       = 10
+; Max Page        = 4
+; Max Tape        = 5
+; Max IntuiFont   = 5
+; Max MedModule   = 8
+; Max Palette     = 4
+; Max MenuList    = 5
+; Max BlitzFont   = 4
+; Max GTList      = 50
+; Max BitMap      = 10
 ; Max IconInfo    = 1
+; Max NChunky     = 50
 ; Max MUIObject   = 50
+; Max PTModule    = 5
 ; Max AsyncReq    = 4
 ; Max Req-Lib     = 5
 ; Max GTMenuList  = 20
 ; Max Console     = 5
 ; Max TCPSock     = 5
-; Max Tape        = 5
-; Max Sound       = 10
-; Max MedModule   = 8
-; Max Buffer      = 10
-; Max Queue       = 10
-; Max Sprite      = 20
-; Max Module      = 5
-; Max Slice       = 10
-; Max Page        = 4
-; Max CopList     = 10
-; Max PTModule    = 5
-; Max Anim        = 10
-; Max NChunky     = 50
-; Max Chunky      = 20
-; Max Stencil     = 5
 ; Max XBSound     = 10
+; Max Chunky      = 20
 ; /XTRA
 ; *** DrawerGenie
 ; *** To do
@@ -83,30 +83,42 @@
 ; - Misalignment of drop-down gadgets               *Done
 ; - Add Help: to documentation search path          *Done
 ; - Option to adjust icon position (Scroll? Move all icons?) *Done (experimental)
+; - Toolbar colour remapping                        *Done
+; - Support for AISS (requires arbitrary gadget sizing instead of fixed 16x16) * Done
+; - AISS active images                              *Done
+; - Toolbar icon transparency                       *Done
+; - Option to set polling period                    *Done
+; - Spacer options (width, spacer image etc.)       *Done
+; - Support for XAD / other archive formats (xadunfile) *Done
+; - BUG: multiple icons added to archive overwrite archive *Done
+; - Support different archiving tools (lzx, Zip etc.) *Done
+
 
 ; - wizard.library dependency still present? 16/32-bit screenmodes only?
 ; - Add automatic opening of toolbar when Workbench windows open (patch Workbench / Intuition)
 ; - Look into adding extra window gadget (patch Intuition?)
-; - Toolbar colour remapping
-; - Support for AISS (requires arbitrary gadget sizing instead of fixed 16x16)
-; - Support for XAD / other archive formats
+; - AISS missing images
+; - Support creating different archive formats
+; - Suppord XAD directly?
+
 
 WBStartup
 
-SYNTAX 2
-OPTIMIZE 4
+Syntax 2
+optimize 4
 
-ver$ = "$VER: DrawerGenie 0.4 (06.11.2023) by Rob Cranley"
-v$ = "0.4"
+ver$ = "$VER: DrawerGenie 0.7 (16.09.2024) by Rob Cranley"
+v$ = "0.7"
 
-#debug = 1
+#debug = 0
 #maxhelpers = 10
-#checkframes = 5
+
+;#checkframes = 5
+
 #maxgadgets = 40
 #allgadgets = 34
 #maxhistory = 20
 #copybuffer = 65536
-
 
 ; Non-helper windows
 
@@ -126,6 +138,11 @@ v$ = "0.4"
 #p_openhotkey = 6
 #p_edittoolbar = 7
 #p_adjustdrawer = 8
+#p_toolbar = 9
+#p_toolbarselect = 10
+#p_useaiss = 11
+#p_pollperiod = 12
+#p_archiver = 13
 
 #p_save = 20
 #p_use = 21
@@ -148,16 +165,21 @@ v$ = "0.4"
 #h_toolbar = 2
 #h_open = 3
 
+; Archivers
+#a_lha = 0
+#a_xad = 1
+
 
 XINCLUDE "DrawerGenieDefs.ab3"
 XINCLUDE "OS3.5.include.ab3"
 
-
+RunErrsOff
 XINCLUDE "arexx.include.ab3"
 XINCLUDE "dos.include.ab3"
 XINCLUDE "asl.include.ab3"
 XINCLUDE "file.include.ab3"
-
+XINCLUDE "image.include.ab3"
+RunErrsOn
 
 error_SetFlags{0}
 
@@ -223,6 +245,13 @@ NEWTYPE .prefs
   toolbarhotkey.s
   openhotkey.s
   homedir.s
+  toolbar.s
+  gadgetw.w
+  gadgeth.w
+  useaiss.b
+  spacerw.w
+  pollperiod.w
+  archiver.b
 End NEWTYPE
 
 NEWTYPE .icon
@@ -245,7 +274,7 @@ End NEWTYPE
 
 DEFTYPE .b quit, activateflag, enabled, prefsopen, swapaction, toolbareditopen
 DEFTYPE .w wbwincount, checkhelper, framecount, iconcount, sourcewin, destwin, fontysize, screenw, screenh, copiedcount, copyflags, wmx, wmy, prevwmx, prevwmy, mousepause, tbselected, allselected
-DEFTYPE .w lastgadget, i, xpos
+DEFTYPE .w lastgadget, i, xpos, tbcount
 DEFTYPE .l iblock, x, ev, ew, ec, eq, ce, hk, gh
 
 DEFTYPE .Screen *wbscreen
@@ -255,7 +284,7 @@ DEFTYPE .prefs prefs
 DEFTYPE .listitem bufferitem1, bufferitem2
 
 Dim List wbwindows.wbwindow(0)
-Dim helpers.helperwindow(10)
+Dim helpers.helperwindow(#maxhelpers)
 Dim taglist.TagItem(10)
 Dim List iconlist.icon(0)
 
@@ -265,6 +294,7 @@ Dim gadgetxpos.w(#maxgadgets) ; X positions of each gadget in the toolbar
 Dim allgadgets.gad(#allgadgets) ; Contains all possible gadgets, with 0 being the spacer (has ID 999 in the layout array)
 Dim List availablegadgets.listitem(#allgadgets) ; For the toolbar editor listview
 Dim List selectedgadgets.listitem(#maxgadgets) ; Selected items in the toolbar editor
+Dim List toolbar$(0)
 
 Restore gadgetnames
 For i = 0 To #allgadgets
@@ -278,7 +308,7 @@ Next i
 .gadgetnames
 Data$ "--Spacer--", "Back", "Parent", "Cut", "Copy", "Paste", "Refresh", "New Drawer", "Icon Information", "Delete", "Text View", "Icon View", "Sort by Name"
 Data$ "Set as Source", "Set as Destination", "Copy to", "Move to", "View File", "Rename", "Open", "Select All", "Sort by Date", "View Type Drop-Down", "Sort by Size", "Sort Icons Drop-Down"
-Data$ "File Visibility Drop-Down", "Only Icons", "All Files", "New Shell Window", "Unpack Lha Archive", "List Lha Archive Contents", "Archive using Lha", "Find Files", "Help", "Sort by Type"
+Data$ "File Visibility Drop-Down", "Only Icons", "All Files", "New Shell Window", "Unpack Archive", "List Archive Contents", "Archive using Lha", "Find Files", "Help", "Sort by Type"
 
 
 XINCLUDE "drawergeniefuncs.ab3"
@@ -318,34 +348,9 @@ End If
 
 
 prefsload{}
+;prefs\archiver = #a_xad
 
-
-toolbarfn$ = dos_AddPart{prefs\homedir, "toolbar.iff"}
-If dos_Exist{toolbarfn$} = False
-  Request "DrawerGenie", "Error - Unable to find DrawerGenie files|Can't find " + toolbarfn$ + "|Please select where the DrawerGenie files are located", "Continue"
-  pt$ = prefs\homedir
-  If aslfr_Request{1, False, False, True}
-    pt$ = aslfr_GetPath{1}
-    toolbarfn$ = dos_AddPart{pt$, "toobar.iff"}
-    If dos_Exist{toolbarfn$} = False
-      Request "DrawerGenie", "Error - Files could not be found|Please quit and try again", "Quit"
-      End
-    End If
-
-  Else
-    End
-  End If
-End If
-
-BitMap 0, 544, 32, 2
-LoadBitMap 0, toolbarfn$
-For i.w = 0 To 1
-  For j.w = 0 To 33
-    GetaShape i * #selectedoffset + j + 1, j * 16, i * 16, 16, 16
-  Next j
-Next i
-
-Free BitMap 0
+processtoolbar{}
 
 WbToScreen 0
 
@@ -366,9 +371,13 @@ End If
 
 
 *wbscreen = Peek.l(Addr Screen(0))
-*ibase = intuitionbase
+;*ibase = OpenLibrary_("intuition.library", 0)
+*ibase = IntuitionBase
 ;*currentwin.Window = *ibase\ActiveWindow
-
+If *ibase = 0
+  End
+EndIf
+                                                                                                                                                                                                                                                     
 
 *fon.TextAttr = *wbscreen\Font
 If *fon
@@ -387,7 +396,6 @@ CEND
 
 LoadFont 0, font$, fontysize
 
-
 GTMenuTitle 0, 0, "Project"
 GTMenuItem 0, 0, 0, 0, "Save", "S"
 GTMenuItem 0, 0, 0, 1, "Use", "U"
@@ -405,6 +413,7 @@ aslfr_SetPattern{0, "~(#?.info)"}
 
 aslfr_SetRequesterTitle{1, "Select Home Directory", "", ""}
 
+aslfr_SetRequesterTitle{2, "Select Toolbar", "", ""}
 
 borderwidths\top = *wbscreen\WBorTop + fontysize + 1
 borderwidths\left = *wbscreen\WBorLeft
@@ -414,12 +423,19 @@ borderwidths\bottom = *wbscreen\WBorBottom
 screenw.w = ScreenWidth
 screenh.w = ScreenHeight
 
+
+
 AddIDCMP #IDCMP_GADGETDOWN|#LISTVIEWIDCMP
 SubIDCMP #IDCMP_VANILLAKEY|#IDCMP_RAWKEY|#IDCMP_INACTIVEWINDOW|#IDCMP_INTUITICKS|#IDCMP_MOUSEMOVE
 
 checkhelper = 1
 enabled = True
 
+tbcount.w = listtoolbars{}
+
+CNIF #debug
+  NPrint "Toolbars found: ", tbcount
+CEND
 
 If popup
   openprefs{}
@@ -544,9 +560,28 @@ Repeat
                   GTSetString 0, #p_homedir, pt$
                 End If
 
+              Case #p_toolbarselect
+                pt$ = dos_PathPart{prefs\toolbar}
+                fn$ = dos_FilePart{prefs\toolbar}
+                aslfr_SetFile{2, fn$}
+                aslfr_SetPath{2, pt$}
+
+                If aslfr_Request{2, False, False, False}
+                  fn$ = aslfr_GetFile{2}
+                  pt$ = aslfr_GetPath{2}
+                  GTSetString 0, #p_toolbar, dos_AddPart{pt$, fn$}
+                End If
+
               Case #p_edittoolbar
                 If toolbareditopen = False
                   openedittoolbar{}
+                End If
+
+              Case #p_useaiss
+                If GTStatus(0, #p_useaiss)
+                  GTDisable 0, #p_toolbar
+                Else
+                  GTEnable 0, #p_toolbar
                 End If
 
               Case #p_save
@@ -1197,67 +1232,13 @@ Repeat
                     End If
 
                   Case #unpack
-                    CNIF #debug
-                      NPrint "Unpacking..."
-                    CEND
-
-                    Gosub fillpathsbuffer
-
-                    If pathsbuffer
-                      If destwin
-                        fulldest$ = helpers(destwin)\path
-                      Else
-                        fulldest$ = helpers(ew)\path
-                      End If
-                      If Right$(fulldest$, 1) <> ":"
-                        If Right$(fulldest$, 1) <> "/"
-                          fulldest$ + "/"
-                        End If
-                      End If
-
-                      Poke.w pathsbuffer + 2, #a_unpack
-                      Poke$ pathsbuffer + 4, fulldest$
-                      cmd$ = "Run \\22" + dos_AddPart{prefs\homedir, "DrawerGenieLha\\22"} + " " + Str$(pathsbuffer) + " >T:DHlhaDebug.txt"
-                      Execute_ cmd$, 0, 0
-                    End If
+                    Gosub unpackarc
 
                   Case #viewlha
-                    CNIF #debug
-                      NPrint "Listing..."
-                    CEND
-
-                    Gosub fillpathsbuffer
-
-                    If pathsbuffer
-                      Poke.w pathsbuffer + 2, #a_list
-                      Poke$ pathsbuffer + 4, prefs\viewer
-
-                      cmd$ = "Run \\22" + dos_AddPart{prefs\homedir, "DrawerGenieLha\\22"} + " " + Str$(pathsbuffer) + " >T:DHlhaDebug.txt"
-                      Execute_ cmd$, 0, 0
-
-                    End If
+                    Gosub viewlhaarc
 
                   Case #pack
-                    CNIF #debug
-                      NPrint "Packing..."
-                    CEND
-
-                    Gosub fillpathsbuffer
-
-                    If pathsbuffer
-                      If destwin
-                        fulldest$ = helpers(destwin)\path
-                      Else
-                        fulldest$ = helpers(ew)\path
-                      End If
-
-                      Poke.w pathsbuffer + 2, #a_pack
-                      Poke$ pathsbuffer + 4, fulldest$
-
-                      cmd$ = "Run \\22" + dos_AddPart{prefs\homedir, "DrawerGenieLha\\22"} + " " + Str$(pathsbuffer) + " >T:DHlhaDebug.txt"
-                      Execute_ cmd$, 0, 0
-
-                    End If
+                    Gosub packarc
 
                   Case #find
                     Execute_ "Run SYS:System/Find", 0, 0
@@ -1298,7 +1279,7 @@ Repeat
   End If
 
   framecount + 1
-  If framecount >= #checkframes
+  If framecount >= prefs\pollperiod ;#checkframes
     checkhelper = nexthelper{checkhelper}
     If checkhelper
       helperstatus.b = helperstatus{checkhelper}
@@ -1336,7 +1317,98 @@ Repeat
 Until quit
 
 arexx_Free{}
+;  oseLibrary_ *ibase
 End
+
+
+
+.unpackarc
+  CNIF #debug
+    NPrint "Unpacking..."
+  CEND
+
+  Gosub fillpathsbuffer
+
+  If pathsbuffer
+    If destwin
+      fulldest$ = helpers(destwin)\path
+    Else
+      fulldest$ = helpers(ew)\path
+    End If
+    If Right$(fulldest$, 1) <> ":"
+      If Right$(fulldest$, 1) <> "/"
+        fulldest$ + "/"
+      End If
+    End If
+
+    Poke.w pathsbuffer + 2, #a_unpack
+    Poke$ pathsbuffer + 4, fulldest$
+
+    Select prefs\archiver
+      Case #a_lha
+        cmd$ = "Run \\22" + dos_AddPart{prefs\homedir, "DrawerGenieLha\\22"} + " " + Str$(pathsbuffer) + " >T:DHLhaDebug.txt"
+      Case #a_xad
+        cmd$ = "Run \\22" + dos_AddPart{prefs\homedir, "DrawerGenieXad\\22"} + " " + Str$(pathsbuffer) + " >T:DHXadDebug.txt"
+    End Select
+
+    Execute_ cmd$, 0, 0
+  End If
+
+Return
+
+.viewlhaarc
+  CNIF #debug
+    NPrint "Listing..."
+  CEND
+
+  Gosub fillpathsbuffer
+
+  If pathsbuffer
+    Poke.w pathsbuffer + 2, #a_list
+    Poke$ pathsbuffer + 4, prefs\viewer
+    NPrint "Archiver: ", prefs\archiver
+    Select prefs\archiver
+      Case #a_lha
+        cmd$ = "Run \\22" + dos_AddPart{prefs\homedir, "DrawerGenieLha\\22"} + " " + Str$(pathsbuffer) + " >T:DHlhaDebug.txt"
+      Case #a_xad
+        cmd$ = "Run \\22" + dos_AddPart{prefs\homedir, "DrawerGenieXad\\22"} + " " + Str$(pathsbuffer) + " >T:DHXadDebug.txt"
+
+    End Select
+
+    Execute_ cmd$, 0, 0
+
+  End If
+Return
+
+
+.packarc
+  CNIF #debug
+    NPrint "Packing..."
+  CEND
+
+  Gosub fillpathsbuffer
+
+  If pathsbuffer
+    If destwin
+      fulldest$ = helpers(destwin)\path
+    Else
+      fulldest$ = helpers(ew)\path
+    End If
+
+    Poke.w pathsbuffer + 2, #a_pack
+    Poke$ pathsbuffer + 4, fulldest$
+
+    Select prefs\archiver
+      Case #a_lha
+        cmd$ = "Run \\22" + dos_AddPart{prefs\homedir, "DrawerGenieLha\\22"} + " " + Str$(pathsbuffer) + " >T:DHlhaDebug.txt"
+      Case #a_xad
+        cmd$ = "Run \\22" + dos_AddPart{prefs\homedir, "DrawerGenieXad\\22"} + " " + Str$(pathsbuffer) + " >T:DHXadDebug.txt"
+    End Select
+
+    Execute_ cmd$, 0, 0
+
+  End If
+Return
 
 
 .fillpathsbuffer
@@ -1699,7 +1771,7 @@ Return
                 xpos + 10
               Else
                 gadgetxpos(gadgets(i)) = xpos
-                xpos + 16
+                xpos + prefs\gadgetw
               End If
 
             End If
