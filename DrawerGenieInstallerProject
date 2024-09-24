@@ -1,6 +1,6 @@
 InstallerGen
-1.5
-16
+1.4
+17
 1
 11
 
@@ -39,7 +39,7 @@ DrawerGenie
 Copying files...
 10
 0
-11
+12
 DrawerGenie.guide
  
 File
@@ -58,13 +58,13 @@ File
 DrawerGenieLha
  
 File
+DrawerGenieXad
+ 
+File
 History.txt
  
 File
 History.txt.info
- 
-File
-toolbar.iff
  
 File
 DrawerGenie
@@ -73,6 +73,9 @@ File
 DrawerGenie.info
  
 File
+Toolbars
+ 
+Dir
 1
 @default-dest
 DrawerGenie
@@ -163,6 +166,25 @@ End of Tooltype lines
 0
 0
 9
+6
+
+Installing wizard.library
+80
+0
+1
+wizard.library
+LIBS:
+File
+0
+
+
+
+0
+0
+
+0
+0
+10
 3
 
 DrawerGenie can be started automatically on boot if desired. If you enable this option, the executable will be copied to WBStartup.
@@ -181,7 +203,7 @@ DrawerGenie
 
 0
 0
-10
+11
 9
 
 
@@ -197,7 +219,7 @@ DrawerGenie
 1
 0
 0
-11
+12
 5
 
 Copying DrawerGenie to WBStartup...
@@ -219,7 +241,7 @@ DrawerGenie
 1
 1
 0
-12
+13
 16
 
 Removing original copy
@@ -235,7 +257,7 @@ Removing original copy
 
 1
 0
-13
+14
 3
 
 That's it! Please read the documentation on how to use and configure DrawerGenie.
@@ -254,7 +276,7 @@ DrawerGenie
 1
 0
 0
-14
+15
 9
 
 
@@ -270,7 +292,7 @@ DrawerGenie
 1
 0
 0
-15
+16
 14
 
 Opening documentation...\n
@@ -286,25 +308,25 @@ Opening documentation...\n
 
 1
 0
-16
+17
 23
 
 
-100
+80
 0
 0
-0
-
-"SYS:Utilities/Multiview " (tackon @default-dest "DrawerGenie.guide")
-
-0
-0
+1
+#var_1
+DrawerGenie
 
 1
 0
+
+0
+0
 <<end of steps>>
 DrawerGenie
-0.2 (28.10.2023)
+1.1 (24.09.2024)
 
 Files:AmiBlitz/Projects/DrawerGenie/DrawerGenie/InstallDrawerGenie
 Files:AmiBlitz/Projects/DrawerGenie/DrawerGenie/

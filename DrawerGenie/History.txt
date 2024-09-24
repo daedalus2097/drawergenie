@@ -1,5 +1,13 @@
 History
 ~~~~~~~
+0.8 (24.09.2024)
+- Removed unintended dependencies on jpeg.library and zlib.library
+- Fixed crash when handling v0.4 prefs file in some cases
+- Added wizard.library to DrawerGenie archive
+- Removed some unwanted debug output
+- Added suitable planar icon imagery (thanks to EctoOne)
+
+
 0.7 (16.09.2024)
 - Added palette-remapping for toolbar graphics
 - Added support for user-defined toolbar graphics

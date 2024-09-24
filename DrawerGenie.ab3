@@ -14,7 +14,7 @@
 ; MakeSmallest    = 1
 ; FuncOptimize    = 1
 ; Version         = 0.0.0
-; NumberOfBuilds  = 1096
+; NumberOfBuilds  = 1099
 ; 
 ; Debugger
 ; -------------------------------------------------------
@@ -30,8 +30,8 @@
 ; 
 ; Editor
 ; -------------------------------------------------------
-; CursorLine      = 234
-; CursorColumn    = 128
+; CursorLine      = 95
+; CursorColumn    = 14
 ; LabelSearch     = ""
 ; LabelRemark     = 0
 ; LabelAll        = 0
@@ -107,8 +107,8 @@ WBStartup
 Syntax 2
 optimize 4
 
-ver$ = "$VER: DrawerGenie 0.7 (16.09.2024) by Rob Cranley"
-v$ = "0.7"
+ver$ = "$VER: DrawerGenie 0.8 (24.09.2024) by Rob Cranley"
+v$ = "0.8"
 
 #debug = 0
 #maxhelpers = 10
@@ -169,6 +169,8 @@ v$ = "0.7"
 #a_lha = 0
 #a_xad = 1
 
+#use_zlib = 0
+#use_jpeg_library = 0
 
 XINCLUDE "DrawerGenieDefs.ab3"
 XINCLUDE "OS3.5.include.ab3"
@@ -178,7 +180,7 @@ XINCLUDE "arexx.include.ab3"
 XINCLUDE "dos.include.ab3"
 XINCLUDE "asl.include.ab3"
 XINCLUDE "file.include.ab3"
-XINCLUDE "image.include.ab3"
+XINCLUDE "image-min.include.ab3" ; image-min is the standard include stripped of JPEG, PNG and saving support
 RunErrsOn
 
 error_SetFlags{0}

@@ -40,6 +40,8 @@ DrawerGenie relies on many features of Workbench introduced with OS 3.5
 Note that OS 3.9, 3.1.4 and 3.2 all include suitable versions of Workbench, and
 DrawerGenie can be used with these.
 
+wizard.library is required (included)
+
 For Lha archive support, the Lha executable must be in the system path (usually
 SYS:C).
 
@@ -62,6 +64,9 @@ Installation
 ~~~~~~~~~~~~
 Unpack DrawerGenie to a suitable location and run the Installer script. It can
 also be installed manually by storing the unpacked drawer on your hard drive.
+DrawerGenie requires wizard.library to be installed; copy this to LIBS: if you
+don't already have it (the Installer script will do this for you).
+
 DrawerGenie needs to be able to find the other files in its drawer, so if you
 move the executable away from these files, set the HOMEDIR icon tooltype to the
 drawer containing the rest of the files. This can also be set in the program
@@ -87,6 +92,13 @@ a Show command from Exchange.
 
 Changes
 ~~~~~~~
+0.8 (24.09.2024)
+- Removed unintended dependencies on jpeg.library and zlib.library
+- Fixed crash when handling v0.4 prefs file in some cases
+- Added wizard.library to DrawerGenie archive
+- Removed some unwanted debug output
+- Added suitable planar icon imagery (thanks to EctoOne)
+
 0.7 (16.09.2024)
 - Added palette-remapping for toolbar graphics
 - Added support for user-defined toolbar graphics

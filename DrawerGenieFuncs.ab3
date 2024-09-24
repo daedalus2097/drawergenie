@@ -30,12 +30,12 @@
 ; 
 ; Editor
 ; -------------------------------------------------------
-; CursorLine      = 718
-; CursorColumn    = 111
+; CursorLine      = 1076
+; CursorColumn    = 5
 ; LabelSearch     = ""
 ; LabelRemark     = 0
 ; LabelAll        = 0
-; LabelPosition   = 17
+; LabelPosition   = 0
 ; 
 ; Blitz Objects
 ; -------------------------------------------------------
@@ -939,7 +939,7 @@ Statement defprefs{}
   prefs\gadgeth = 16
   prefs\gadgetw = 16
   prefs\useaiss = False
-  prefs\toolbar = "toolbar.iff" ;"default.iff"
+  prefs\toolbar = "default.iff"
   prefs\pollperiod = 5
 End Statement
 
@@ -1036,8 +1036,6 @@ Statement processtoolbar{}
       ef.b = False
       If image_LoadShape{#back, "TBIMAGES:nav_west_h.iff"} = False Then ef = True
       If image_LoadShape{#back + #selectedoffset, "TBIMAGES:nav_west.iff"} = False Then ef = True
-      ;LoadShape #back, "TBIMAGES:nav_west_h.iff"
-      ;LoadShape #back + #selectedoffset, "TBIMAGES:nav_west.iff"
       If image_LoadShape{#parent, "TBIMAGES:parent_h"} = False Then ef = True
       If image_LoadShape{#parent + #selectedoffset, "TBIMAGES:parent"} = False Then ef = True
       If image_LoadShape{#cut, "TBIMAGES:cut"} = False Then ef = True
@@ -1106,7 +1104,9 @@ Statement processtoolbar{}
       If image_LoadShape{#sortbytype + #selectedoffset, "TBIMAGES:sort_s"} = False Then ef = True
 
       If ef = False
-        NPrint "Failed to load"
+        CNIF #debug
+          NPrint "Failed to load"
+        CEND
         prefs\gadgetw = ShapeWidth(1)
         prefs\gadgeth = ShapeHeight(1)
         prefs\spacerw = prefs\gadgetw / 2 + 2
@@ -1118,8 +1118,9 @@ Statement processtoolbar{}
           Use BitMap 1
 
           bgcol.w = Point(0, 0)
-          NPrint "Background Pen: ", bgcol
-
+          CNIF #debug
+            NPrint "Background Pen: ", bgcol
+          CEND
 
           ReMap bgcol, 0
 
@@ -1129,8 +1130,9 @@ Statement processtoolbar{}
           Use BitMap 1
 
           bgcol.w = Point(0, 0)
-          NPrint "Background Pen: ", bgcol
-
+          CNIF #debug
+            NPrint "Background Pen: ", bgcol
+          CEND
 
           ReMap bgcol, 0
 
@@ -1145,6 +1147,10 @@ Statement processtoolbar{}
   End If
 
   If prefs\useaiss = False
+    If prefs\toolbar = ""
+      prefs\toolbar = "default.iff"
+    End If
+
     tb$ = dos_AddPart{"Toolbars", prefs\toolbar}
     toolbarfn$ = dos_AddPart{prefs\homedir, tb$}
 
@@ -1165,7 +1171,6 @@ Statement processtoolbar{}
       End If
     End If
 
-
     ILBMInfo toolbarfn$
     bmapw.w = ILBMWidth
     bmaph.w = ILBMHeight
@@ -1184,8 +1189,9 @@ Statement processtoolbar{}
     Use BitMap 0
 
     bgcol.w = Point(1, 1)
-    NPrint "Background Pen: ", bgcol
-
+    CNIF #debug
+      NPrint "Background Pen: ", bgcol
+    CEND
 
     ReMap bgcol, 0
 

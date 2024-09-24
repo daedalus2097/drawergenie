@@ -3,7 +3,7 @@
 @NODE "main" "DrawerGenie Guide"
 
    @{b}
-   DrawerGenie v0.7
+   DrawerGenie v0.8
    @{ub}
    © 2023-2024 Rob Cranley
 
@@ -30,6 +30,8 @@
    @{" Bugs & Limitations " LINK "bugs"}  Known problems with DrawerGenie
    
    @{" Future             " LINK "future"}  Plans for future versions of DrawerGenie
+   
+   @{" Credits and Thanks " LINK "credits"}  Credits of contributors
 
    @{" About Me           " LINK "aboutme"}  About the author
 
@@ -69,11 +71,11 @@ Hold down the Help key while clicking a gadget for brief pop-up help.
 
 @{b}Installing DrawerGenie@{ub}
 
-The simplest thing to do is run the Installer script. This will let you choose a location to install the DrawerGenie drawer, and will optionally put the executable in WBStartup so that it starts on boot. It will also set the path setting for DrawerGenie's home directory as necessary.
+The simplest thing to do is run the Installer script. This will let you choose a location to install the DrawerGenie drawer, and will optionally put the executable in WBStartup so that it starts on boot. It will also set the path setting for DrawerGenie's home directory as necessary. DrawerGenie requires wizard.library, and the Installer script will install this for you if you don't have it already.
 
 DrawerGenie needs to be able to find the various files in the DrawerGenie directory, so if you move the executable elsewhere, e.g. WBStartup, it needs to know where the other files are stored. You can tell it by setting the HOMEDIR Tooltype in the DrawerGenie icon, or using the program's preferences window. The Installer script will set this Tooltype automatically.
 
-Manual installation simply involves storing the unpacked drawer in a suitable location on your hard drive. Just remember to set the HOMEDIR Tooltype or setting if you move the executable away from this location (e.g. into WBStartup).
+Manual installation involves simply storing the unpacked drawer in a suitable location on your hard drive, then copying wizard.library to LIBS: (if you don't have it already). Just remember to set the HOMEDIR Tooltype or setting if you move the executable away from this location (e.g. into WBStartup).
 
 @ENDNODE
 @NODE "usage" "DrawerGenie - Usage"
@@ -269,6 +271,17 @@ Things I hope to add to DrawerGenie in the future (time and ability permitting) 
 - Automatic opening of toolbars when Workbench drawers are opened
 
 If you have any suggestions, please @{"let me know" LINK "aboutme"}!
+
+@ENDNODE
+@NODE "credits" "DrawerGenie - Credits and Thanks"
+
+@{b}Credits and Thanks@{ub}
+
+Thanks to EctoOne for the new planar icon imagery.
+
+wizard.library is by HAAGE & PARTNER Computer. They've since left the Amiga realm, but still...
+
+And thanks to everyone who donated for DrawerGenie, who downloaded it and who gave valuable feedback. It all helps :)
 
 @ENDNODE
 @NODE "aboutme" "DrawerGenie - About Me"
