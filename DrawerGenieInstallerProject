@@ -1,5 +1,5 @@
 InstallerGen
-1.4
+1.5
 17
 1
 11
@@ -89,7 +89,7 @@ DrawerGenie
 20
 Set tooltype for home directory
 
-70
+60
 0
 0
 0
@@ -169,7 +169,7 @@ End of Tooltype lines
 6
 
 Installing wizard.library
-80
+70
 0
 1
 wizard.library
@@ -183,7 +183,7 @@ File
 0
 
 0
-0
+2
 10
 3
 
@@ -225,11 +225,8 @@ DrawerGenie
 Copying DrawerGenie to WBStartup...
 80
 0
-2
-(tackon @default-dest DrawerGenie)
-SYS:WBStartup
-File
-DrawerGenie.info
+1
+DrawerGenie
 SYS:WBStartup
 File
 1
@@ -312,7 +309,7 @@ Opening documentation...\n
 23
 
 
-80
+100
 0
 0
 1
